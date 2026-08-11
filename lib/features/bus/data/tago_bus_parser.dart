@@ -30,9 +30,7 @@ class TagoBusParser {
 
     final response = body['response'];
     final responseBody = response is Map ? response['body'] : null;
-    final totalCount = responseBody is Map
-        ? responseBody['totalCount']
-        : null;
+    final totalCount = responseBody is Map ? responseBody['totalCount'] : null;
 
     if (_isZero(totalCount)) {
       return const [];
@@ -68,8 +66,6 @@ class TagoBusParser {
       return null;
     }
 
-    return value.map(
-      (key, itemValue) => MapEntry(key.toString(), itemValue),
-    );
+    return value.map((key, itemValue) => MapEntry(key.toString(), itemValue));
   }
 }

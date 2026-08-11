@@ -112,7 +112,7 @@ class _RestaurantJapanScreenState extends State<RestaurantJapanScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

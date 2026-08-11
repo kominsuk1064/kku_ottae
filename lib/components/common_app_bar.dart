@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -24,10 +23,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: () => Navigator.pop(context),
             )
           : null,
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       centerTitle: centerTitle,
       backgroundColor: Colors.green[800],
       actions: actions,

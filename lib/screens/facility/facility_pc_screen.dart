@@ -113,7 +113,7 @@ class _FacilityPcScreenState extends State<FacilityPcScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

@@ -127,7 +127,7 @@ class _RestaurantChickenScreenState extends State<RestaurantChickenScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

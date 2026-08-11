@@ -120,7 +120,7 @@ class _RestaurantMeatScreenState extends State<RestaurantMeatScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

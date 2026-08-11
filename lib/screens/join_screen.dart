@@ -43,18 +43,23 @@ class _JoinScreenState extends State<JoinScreen> {
     try {
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
-      print("✅ 계정 생성 성공: ${credential.user?.email}");
+      debugPrint('Firebase account created');
 
       await credential.user?.sendEmailVerification();
-      print("📧 인증 메일 발송 완료");
+      debugPrint('Verification email sent');
+      if (!mounted) return;
 
       Fluttertoast.showToast(msg: '📨 인증 메일을 보냈습니다!');
       setState(() => _codeSent = true);
     } on FirebaseAuthException catch (e) {
-      print("❌ FirebaseAuth 오류: ${e.code} / ${e.message}");
+      debugPrint('FirebaseAuth signup error: ${e.code} / ${e.message}');
+      if (!mounted) return;
+
       Fluttertoast.showToast(msg: e.message ?? '회원가입 실패');
-    } catch (e) {
-      print("❌ 기타 오류 발생: $e");
+    } catch (e, stackTrace) {
+      debugPrint('Unexpected signup error: $e\n$stackTrace');
+      if (!mounted) return;
+
       Fluttertoast.showToast(msg: '알 수 없는 오류 발생');
     }
   }
@@ -63,6 +68,8 @@ class _JoinScreenState extends State<JoinScreen> {
   Future<void> checkEmailVerified() async {
     final user = FirebaseAuth.instance.currentUser;
     await user?.reload();
+    if (!mounted) return;
+
     if (user != null && user.emailVerified) {
       Fluttertoast.showToast(msg: '✅ 이메일 인증 완료!');
       setState(() => _isVerified = true);
@@ -75,29 +82,44 @@ class _JoinScreenState extends State<JoinScreen> {
   Future<void> completeSignup() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      print('❌ 유저 없음!');
+      debugPrint('Cannot complete signup: no Firebase user');
       return;
     }
 
     try {
-      print('📦 Firestore 저장 시작');
+      debugPrint('Saving signup profile to Firestore');
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': _nameController.text.trim(),
         'studentId': _studentIdController.text.trim(),
         'email': user.email,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      if (!mounted) return;
 
-      print('✅ Firestore 저장 완료');
+      debugPrint('Signup profile saved');
       Fluttertoast.showToast(msg: '🎉 회원가입 완료!');
 
       await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
       // 로그인 화면으로 이동
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-    } catch (e) {
-      print("❌ Firestore 저장 오류: $e");
+    } catch (e, stackTrace) {
+      debugPrint('Failed to save signup profile: $e\n$stackTrace');
+      if (!mounted) return;
+
       Fluttertoast.showToast(msg: '회원정보 저장 실패');
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _nameController.dispose();
+    _studentIdController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -115,7 +137,7 @@ class _JoinScreenState extends State<JoinScreen> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(16),
             ),
             child: ListView(
