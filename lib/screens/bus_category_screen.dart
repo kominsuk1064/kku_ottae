@@ -8,6 +8,7 @@ import 'package:kku_ottae/features/bus/domain/bus_arrival.dart';
 import 'package:kku_ottae/features/bus/domain/bus_arrival_repository.dart';
 import 'package:kku_ottae/features/bus/domain/bus_route_summary.dart';
 import 'package:kku_ottae/features/bus/domain/bus_stop.dart';
+import 'package:kku_ottae/features/favorites/presentation/favorites_builder.dart';
 
 /* ==========================
    BusCategoryScreen
@@ -73,10 +74,7 @@ class _BusCategoryScreenState extends State<BusCategoryScreen>
               favorites: widget.favorites,
               toggleFavorite: widget.toggleFavorite,
             ),
-            InCityBusTab(
-              favorites: widget.favorites,
-              toggleFavorite: widget.toggleFavorite,
-            ),
+            const InCityBusTab(),
           ],
         ),
       ),
@@ -89,14 +87,7 @@ class _BusCategoryScreenState extends State<BusCategoryScreen>
    ========================== */
 
 class InCityBusTab extends StatelessWidget {
-  final Set<String> favorites;
-  final void Function(String) toggleFavorite;
-
-  const InCityBusTab({
-    super.key,
-    required this.favorites,
-    required this.toggleFavorite,
-  });
+  const InCityBusTab({super.key});
 
   String get _cityCode =>
       const String.fromEnvironment('CITY_CODE', defaultValue: '33020');
@@ -150,12 +141,15 @@ class InCityBusTab extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => BusArrivalsScreen(
-                  stop: s,
-                  favorites: favorites,
-                  toggleFavorite: toggleFavorite,
-                  tagoKeyEncoded: _tagoKeyEncoded,
-                  cityCode: _cityCode,
+                builder: (_) => FavoritesBuilder(
+                  builder: (context, favorites, toggleFavorite) =>
+                      BusArrivalsScreen(
+                        stop: s,
+                        favorites: favorites,
+                        toggleFavorite: toggleFavorite,
+                        tagoKeyEncoded: _tagoKeyEncoded,
+                        cityCode: _cityCode,
+                      ),
                 ),
               ),
             );
