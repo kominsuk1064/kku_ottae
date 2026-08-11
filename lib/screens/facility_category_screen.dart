@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kku_ottae/features/favorites/presentation/favorites_builder.dart';
+
 import 'facility/facility_restaurant_screen.dart';
 import 'facility/facility_cafe_screen.dart';
 import 'facility/facility_bar_screen.dart';
@@ -7,16 +9,9 @@ import 'facility/facility_etc_screen.dart';
 import 'facility/facility_Pc_screen.dart';
 
 class FacilityCategoryScreen extends StatelessWidget {
-  final Set<String> favorites;
-  final void Function(String) toggleFavorite;
+  const FacilityCategoryScreen({super.key});
 
-  const FacilityCategoryScreen({
-    super.key,
-    required this.favorites,
-    required this.toggleFavorite,
-  });
-
-  final List<_Category> categories = const [
+  final List<_Category> _categories = const [
     _Category(name: '식당', emoji: '🍽️'),
     _Category(name: '카페', emoji: '☕'),
     _Category(name: '술집', emoji: '🍻'),
@@ -37,7 +32,7 @@ class FacilityCategoryScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: GridView.builder(
-          itemCount: categories.length,
+          itemCount: _categories.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisExtent: 140,
@@ -45,7 +40,7 @@ class FacilityCategoryScreen extends StatelessWidget {
             mainAxisSpacing: 16,
           ),
           itemBuilder: (context, index) {
-            final category = categories[index];
+            final category = _categories[index];
 
             return GestureDetector(
               onTap: () {
@@ -55,10 +50,7 @@ class FacilityCategoryScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FacilityRestaurantScreen(
-                          favorites: favorites,
-                          toggleFavorite: toggleFavorite,
-                        ),
+                        builder: (_) => const FacilityRestaurantScreen(),
                       ),
                     );
                     break;
@@ -66,9 +58,12 @@ class FacilityCategoryScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FacilityCafeScreen(
-                          favorites: favorites,
-                          toggleFavorite: toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              FacilityCafeScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -77,9 +72,12 @@ class FacilityCategoryScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FacilityBarScreen(
-                          favorites: favorites,
-                          toggleFavorite: toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              FacilityBarScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -88,9 +86,12 @@ class FacilityCategoryScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FacilityMartScreen(
-                          favorites: favorites,
-                          toggleFavorite: toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              FacilityMartScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -99,9 +100,12 @@ class FacilityCategoryScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FacilityPcScreen(
-                          favorites: favorites,
-                          toggleFavorite: toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              FacilityPcScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -110,9 +114,12 @@ class FacilityCategoryScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FacilityEtcScreen(
-                          favorites: favorites,
-                          toggleFavorite: toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              FacilityEtcScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );

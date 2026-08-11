@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 
 class ExBusInfoScreen extends StatefulWidget {
   final Set<String> favorites;
-  const ExBusInfoScreen({super.key, required this.favorites});
+  final ValueChanged<String> toggleFavorite;
+
+  const ExBusInfoScreen({
+    super.key,
+    required this.favorites,
+    required this.toggleFavorite,
+  });
 
   @override
   State<ExBusInfoScreen> createState() => _ExBusInfoScreenState();
@@ -68,16 +74,6 @@ class _ExBusInfoScreenState extends State<ExBusInfoScreen> {
     "19:20",
   };
 
-  void toggleFavorite(String key) {
-    setState(() {
-      if (widget.favorites.contains(key)) {
-        widget.favorites.remove(key);
-      } else {
-        widget.favorites.add(key);
-      }
-    });
-  }
-
   Widget buildCell(String time, String key, {bool isDongSeoul = false}) {
     final isDirect = isDongSeoul && directDongSeoul.contains(time);
     final textColor = isDirect ? Colors.red : Colors.black;
@@ -102,7 +98,7 @@ class _ExBusInfoScreenState extends State<ExBusInfoScreen> {
                     ? Colors.amber
                     : Colors.grey,
               ),
-              onPressed: () => toggleFavorite(key),
+              onPressed: () => widget.toggleFavorite(key),
             ),
         ],
       ),
