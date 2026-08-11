@@ -86,21 +86,24 @@ void main() {
       );
     });
 
-    test('throws TimeoutException when the request exceeds its limit', () async {
-      final pendingResponse = Completer<http.Response>();
-      final apiClient = TagoBusApiClient(
-        client: MockClient((_) => pendingResponse.future),
-        requestTimeout: const Duration(milliseconds: 10),
-      );
-      addTearDown(apiClient.dispose);
+    test(
+      'throws TimeoutException when the request exceeds its limit',
+      () async {
+        final pendingResponse = Completer<http.Response>();
+        final apiClient = TagoBusApiClient(
+          client: MockClient((_) => pendingResponse.future),
+          requestTimeout: const Duration(milliseconds: 10),
+        );
+        addTearDown(apiClient.dispose);
 
-      final request = apiClient.fetchArrivals(
-        serviceKey: 'key',
-        cityCode: '33020',
-        stopId: 'stop',
-      );
+        final request = apiClient.fetchArrivals(
+          serviceKey: 'key',
+          cityCode: '33020',
+          stopId: 'stop',
+        );
 
-      await expectLater(request, throwsA(isA<TimeoutException>()));
-    });
+        await expectLater(request, throwsA(isA<TimeoutException>()));
+      },
+    );
   });
 }

@@ -27,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: email,
         password: password,
       );
+      if (!mounted) return;
 
       if (credential.user != null && credential.user!.emailVerified) {
         Fluttertoast.showToast(msg: '🎉 로그인 성공!');
@@ -35,15 +36,29 @@ class _LoginScreenState extends State<LoginScreen> {
         Fluttertoast.showToast(msg: '📭 이메일 인증이 완료되지 않았습니다.');
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuth login error: ${e.code} / ${e.message}');
+      if (!mounted) return;
+
       String msg = '로그인 실패';
-      if (e.code == 'user-not-found')
+      if (e.code == 'user-not-found') {
         msg = '존재하지 않는 이메일입니다.';
-      else if (e.code == 'wrong-password')
+      } else if (e.code == 'wrong-password') {
         msg = '비밀번호가 틀렸습니다.';
+      }
       Fluttertoast.showToast(msg: msg);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Unexpected login error: $e\n$stackTrace');
+      if (!mounted) return;
+
       Fluttertoast.showToast(msg: '알 수 없는 오류 발생');
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -61,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -97,8 +112,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         await FirebaseAuth.instance.sendPasswordResetEmail(
                           email: email,
                         );
+                        if (!mounted) return;
+
                         Fluttertoast.showToast(msg: '📩 비밀번호 재설정 메일을 보냈습니다.');
                       } on FirebaseAuthException catch (e) {
+                        if (!mounted) return;
+
                         String msg = '메일 전송 실패';
                         if (e.code == 'user-not-found') msg = '등록되지 않은 이메일입니다.';
                         Fluttertoast.showToast(msg: msg);

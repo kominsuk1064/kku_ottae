@@ -7,9 +7,7 @@ void main() {
 
   group('TagoBusParser', () {
     test('parses a top-level list', () {
-      final items = parser.parseItems(
-        '[{"routeid":"CHB1","routeno":"100"}]',
-      );
+      final items = parser.parseItems('[{"routeid":"CHB1","routeno":"100"}]');
 
       expect(items, hasLength(1));
       expect(items.single['routeid'], 'CHB1');

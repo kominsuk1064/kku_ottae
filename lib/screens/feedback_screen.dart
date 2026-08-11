@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class FeedbackScreen extends StatefulWidget {
-  const FeedbackScreen({Key? key}) : super(key: key);
+  const FeedbackScreen({super.key});
 
   @override
   State<FeedbackScreen> createState() => _FeedbackScreenState();
@@ -43,16 +43,22 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         'comment': text,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('피드백이 정상적으로 전송되었습니다!')));
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('전송 실패: $e')));
     } finally {
-      setState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
