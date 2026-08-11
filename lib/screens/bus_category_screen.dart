@@ -1,8 +1,13 @@
-import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:kku_ottae/features/bus/data/tago_bus_arrival_repository.dart';
+import 'package:kku_ottae/features/bus/data/tago_bus_exception.dart';
+import 'package:kku_ottae/features/bus/domain/bus_arrival.dart';
+import 'package:kku_ottae/features/bus/domain/bus_arrival_repository.dart';
+import 'package:kku_ottae/features/bus/domain/bus_route_summary.dart';
+import 'package:kku_ottae/features/bus/domain/bus_stop.dart';
 
 /* ==========================
    BusCategoryScreen
@@ -106,7 +111,7 @@ class InCityBusTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 확정된 6개 정류장
-    final fixedStops = <BusStop>[
+    const fixedStops = <BusStop>[
       // 정문
       BusStop(stopId: 'CHB272060002', stopName: '건국대(정문·시외방향)'),
       BusStop(stopId: 'CHB272064033', stopName: '건국대(정문·시내방향)'),
@@ -162,48 +167,6 @@ class InCityBusTab extends StatelessWidget {
 }
 
 /* ==========================
-   모델
-   ========================== */
-
-class BusStop {
-  final String stopId;
-  final String stopName;
-  final double? lat;
-  final double? lng;
-  BusStop({required this.stopId, required this.stopName, this.lat, this.lng});
-}
-
-class BusArrivalItem {
-  final String routeId; // routeid
-  final String routeName; // routeno
-  final int minutes; // arrtime(초) -> 분
-  final int stopsAway; // arrprevstationcnt
-  final String direction; // 0:상행, 1:하행
-
-  BusArrivalItem({
-    required this.routeId,
-    required this.routeName,
-    required this.minutes,
-    required this.stopsAway,
-    required this.direction,
-  });
-
-  factory BusArrivalItem.fromTagoJson(Map<String, dynamic> j) {
-    final sec = int.tryParse('${j['arrtime'] ?? '0'}') ?? 0;
-    final mins = (sec / 60).ceil();
-    final prev = int.tryParse('${j['arrprevstationcnt'] ?? '0'}') ?? 0;
-    final up = '${j['updown'] ?? ''}';
-    return BusArrivalItem(
-      routeId: '${j['routeid'] ?? ''}',
-      routeName: '${j['routeno'] ?? ''}',
-      minutes: mins,
-      stopsAway: prev,
-      direction: up == '0' ? '상행' : '하행',
-    );
-  }
-}
-
-/* ==========================
    도착 정보 화면
    ========================== */
 
@@ -213,6 +176,7 @@ class BusArrivalsScreen extends StatefulWidget {
   final void Function(String) toggleFavorite;
   final String tagoKeyEncoded;
   final String cityCode;
+  final BusArrivalRepository? repository;
 
   const BusArrivalsScreen({
     super.key,
@@ -221,6 +185,7 @@ class BusArrivalsScreen extends StatefulWidget {
     required this.toggleFavorite,
     required this.tagoKeyEncoded,
     required this.cityCode,
+    this.repository,
   });
 
   @override
@@ -230,17 +195,22 @@ class BusArrivalsScreen extends StatefulWidget {
 class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
   bool _loading = false;
   String? _error;
-  List<BusArrivalItem> _arrivals = [];
+  List<BusArrival> _arrivals = [];
   Timer? _poller;
   DateTime? _lastUpdated;
-
-  // ▼▼ 전역 오프셋 보정값 ▼▼
-  static const int globalMinBias = 2; // 전체에서 -3분
-  static const int globalStopsBias = 1; // 전체에서 -2정류장
+  late final BusArrivalRepository _repository;
+  late final bool _ownsRepository;
 
   @override
   void initState() {
     super.initState();
+    _ownsRepository = widget.repository == null;
+    _repository =
+        widget.repository ??
+        TagoBusArrivalRepository.live(
+          serviceKey: widget.tagoKeyEncoded,
+          cityCode: widget.cityCode,
+        );
     _fetchArrivals();
     _poller = Timer.periodic(
       const Duration(seconds: 15),
@@ -251,28 +221,19 @@ class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
   @override
   void dispose() {
     _poller?.cancel();
+    if (_ownsRepository) {
+      _repository.dispose();
+    }
     super.dispose();
   }
 
-  BusArrivalItem _applyBias(BusArrivalItem a) {
-    final adjMin = (a.minutes - globalMinBias).clamp(0, 9999);
-    final adjStops = (a.stopsAway - globalStopsBias).clamp(0, 9999);
-    return BusArrivalItem(
-      routeId: a.routeId,
-      routeName: a.routeName,
-      minutes: adjMin,
-      stopsAway: adjStops,
-      direction: a.direction,
-    );
-  }
-
-  String _etaMinutesLine(BusArrivalItem a) {
+  String _etaMinutesLine(BusArrival a) {
     final m = max(0, a.minutes);
     if (m == 0) return '곧 도착';
     return '약 ${m}분 후';
   }
 
-  String _etaStopsLine(BusArrivalItem a) {
+  String _etaStopsLine(BusArrival a) {
     return a.stopsAway > 0 ? '${a.stopsAway}정류장 전' : '바로 앞';
   }
 
@@ -284,69 +245,34 @@ class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
     });
 
     try {
-      final uri = Uri.parse(
-        'https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList'
-        '?serviceKey=${widget.tagoKeyEncoded}&_type=json'
-        '&cityCode=${widget.cityCode}&nodeId=${Uri.encodeComponent(widget.stop.stopId)}'
-        '&pageNo=1&numOfRows=30',
+      final arrivals = await _repository.fetchArrivals(
+        stopId: widget.stop.stopId,
       );
 
-      final res = await http.get(uri).timeout(const Duration(seconds: 8));
-
-      if (res.statusCode != 200) {
-        setState(() => _error = 'HTTP ${res.statusCode}');
+      if (!mounted) {
         return;
       }
-
-      final text = res.body.trim();
-
-      // XML 오류 응답
-      if (text.startsWith('<')) {
-        final isPolicy = text.contains('Policy Falsified');
-        final msg = isPolicy ? 'API 거부: 키/엔드포인트/파라미터 확인' : 'API XML 오류 응답';
-        setState(() => _error = msg);
-        return;
-      }
-
-      // JSON 파싱
-      final body = jsonDecode(text);
-
-      // totalCount=0 → 정상 빈 결과
-      final total = body?['response']?['body']?['totalCount'];
-      if (total is int && total == 0) {
-        setState(() {
-          _arrivals = const [];
-          _error = null;
-        });
-        return;
-      }
-
-      // item 변형 대응
-      final items = _asList(body);
-
-      final parsed = items
-          .whereType<Map<String, dynamic>>()
-          .map((e) => BusArrivalItem.fromTagoJson(e))
-          .map(_applyBias) // ◀ 보정 적용
-          .toList();
-
-      // 정렬: 분 → 정류장수 → 노선명
-      parsed.sort((a, b) {
-        final c1 = a.minutes.compareTo(b.minutes);
-        if (c1 != 0) return c1;
-        final c2 = a.stopsAway.compareTo(b.stopsAway);
-        if (c2 != 0) return c2;
-        return a.routeName.compareTo(b.routeName);
-      });
 
       setState(() {
-        _arrivals = parsed;
+        _arrivals = arrivals;
         _error = null;
       });
     } on TimeoutException {
-      setState(() => _error = '요청 시간 초과');
+      if (mounted) {
+        setState(() => _error = '요청 시간 초과');
+      }
+    } on TagoBusHttpException catch (error) {
+      if (mounted) {
+        setState(() => _error = 'HTTP ${error.statusCode}');
+      }
+    } on TagoBusResponseException catch (error) {
+      if (mounted) {
+        setState(() => _error = error.message);
+      }
     } catch (_) {
-      setState(() => _error = '응답 파싱 실패');
+      if (mounted) {
+        setState(() => _error = '응답 파싱 실패');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -357,36 +283,13 @@ class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
     }
   }
 
-  List<dynamic> _asList(dynamic body) {
-    if (body is List) return body;
-    if (body is Map && body['response'] != null) {
-      final items = body['response']?['body']?['items']?['item'];
-      if (items == null) return <dynamic>[];
-      if (items is List) return items;
-      if (items is Map) return [items];
-      return <dynamic>[];
-    }
-    return <dynamic>[];
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchRoutesThroughStop() async {
-    final uri = Uri.parse(
-      'https://apis.data.go.kr/1613000/BusRouteInfoInqireService/getSttnThrghRouteList'
-      '?serviceKey=${widget.tagoKeyEncoded}&_type=json'
-      '&cityCode=${widget.cityCode}&nodeid=${Uri.encodeComponent(widget.stop.stopId)}'
-      '&pageNo=1&numOfRows=100',
-    );
+  Future<List<BusRouteSummary>> _fetchRoutesThroughStop() async {
     try {
-      final res = await http.get(uri).timeout(const Duration(seconds: 8));
-      if (res.statusCode != 200) return [];
-      final j = jsonDecode(res.body);
-      final items = j['response']?['body']?['items']?['item'];
-      if (items == null) return [];
-      return items is List
-          ? items.cast<Map<String, dynamic>>()
-          : [items as Map<String, dynamic>];
+      return await _repository.fetchRoutesThroughStop(
+        stopId: widget.stop.stopId,
+      );
     } catch (_) {
-      return [];
+      return const [];
     }
   }
 
@@ -466,7 +369,7 @@ class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
 }
 
 class _EmptyWithRoutes extends StatelessWidget {
-  final Future<List<Map<String, dynamic>>> Function() fetchRoutes;
+  final Future<List<BusRouteSummary>> Function() fetchRoutes;
   const _EmptyWithRoutes({required this.fetchRoutes});
 
   @override
@@ -498,7 +401,7 @@ class _EmptyWithRoutes extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: routes
-                        .map((r) => Chip(label: Text('${r['routeno'] ?? ''}')))
+                        .map((route) => Chip(label: Text(route.routeName)))
                         .toList(),
                   ),
                 ],
