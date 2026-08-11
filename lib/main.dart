@@ -1,7 +1,13 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ SharedPreferences 추가
+
+import 'features/favorites/data/favorite_repository_impl.dart';
+import 'features/favorites/data/shared_preferences_favorite_local_storage.dart';
+import 'features/favorites/domain/favorite_repository.dart';
 
 import 'screens/initial_screen.dart';
 import 'screens/login_screen.dart';
@@ -29,30 +35,47 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final Set<String> favorites = {};
+  final FavoriteRepository _favoriteRepository = FavoriteRepositoryImpl(
+    SharedPreferencesFavoriteLocalStorage(),
+  );
 
   @override
   void initState() {
     super.initState();
-    loadFavorites(); // ✅ 앱 시작 시 즐겨찾기 로드
+    unawaited(_loadFavorites());
   }
 
-  // ✅ SharedPreferences로부터 즐겨찾기 로드
-  Future<void> loadFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favList = prefs.getStringList('favorites') ?? [];
-    setState(() {
-      favorites.addAll(favList);
-    });
+  Future<void> _loadFavorites() async {
+    try {
+      final restoredFavorites = await _favoriteRepository.loadFavorites();
+      if (!mounted) {
+        return;
+      }
+      setState(() => favorites.addAll(restoredFavorites));
+    } catch (error, stackTrace) {
+      developer.log(
+        '즐겨찾기 복원 실패',
+        name: 'kku_ottae.favorites',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
-  // ✅ SharedPreferences에 즐겨찾기 저장
-  Future<void> saveFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('favorites', favorites.toList());
+  Future<void> _saveFavorites(Set<String> snapshot) async {
+    try {
+      await _favoriteRepository.saveFavorites(snapshot);
+    } catch (error, stackTrace) {
+      developer.log(
+        '즐겨찾기 저장 실패',
+        name: 'kku_ottae.favorites',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
-  // ✅ 즐겨찾기 추가/제거 + 저장
-  void toggleFavorite(String key) {
+  void _toggleFavorite(String key) {
     setState(() {
       if (favorites.contains(key)) {
         favorites.remove(key);
@@ -60,7 +83,7 @@ class _MyAppState extends State<MyApp> {
         favorites.add(key);
       }
     });
-    saveFavorites();
+    unawaited(_saveFavorites(Set<String>.unmodifiable(favorites)));
   }
 
   @override
@@ -77,7 +100,7 @@ class _MyAppState extends State<MyApp> {
         '/home': (context) => const HomeScreen(),
         '/bus': (context) => BusCategoryScreen(
           favorites: favorites,
-          toggleFavorite: toggleFavorite,
+          toggleFavorite: _toggleFavorite,
         ),
         '/exbus': (context) => ExBusInfoScreen(favorites: favorites),
         '/inbus': (context) => const InBusInfoScreen(),
@@ -85,7 +108,7 @@ class _MyAppState extends State<MyApp> {
         '/favorites': (context) => FavoritePageScreen(favorites: favorites),
         '/facility': (context) => FacilityCategoryScreen(
           favorites: favorites,
-          toggleFavorite: toggleFavorite,
+          toggleFavorite: _toggleFavorite,
         ),
       },
     );
