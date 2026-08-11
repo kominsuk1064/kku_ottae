@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kku_ottae/features/favorites/presentation/favorites_builder.dart';
 
 import 'restaurant/restaurant_korea_screen.dart';
 import 'restaurant/restaurant_china_screen.dart';
@@ -13,23 +14,10 @@ class _Subcategory {
   const _Subcategory({required this.name, required this.emoji});
 }
 
-class FacilityRestaurantScreen extends StatefulWidget {
-  final Set<String> favorites;
-  final void Function(String) toggleFavorite;
+class FacilityRestaurantScreen extends StatelessWidget {
+  const FacilityRestaurantScreen({super.key});
 
-  const FacilityRestaurantScreen({
-    super.key,
-    required this.favorites,
-    required this.toggleFavorite,
-  });
-
-  @override
-  State<FacilityRestaurantScreen> createState() =>
-      _FacilityRestaurantScreenState();
-}
-
-class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
-  static const List<_Subcategory> subcategories = [
+  static const List<_Subcategory> _subcategories = [
     _Subcategory(name: '한식', emoji: '🍚'),
     _Subcategory(name: '중식', emoji: '🍜'),
     _Subcategory(name: '일식, 아시안', emoji: '🍱'),
@@ -49,7 +37,7 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
       body: Center(
         child: GridView.builder(
           shrinkWrap: true,
-          itemCount: subcategories.length,
+          itemCount: _subcategories.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisExtent: 130,
@@ -57,7 +45,7 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
             mainAxisSpacing: 16,
           ),
           itemBuilder: (context, index) {
-            final sub = subcategories[index];
+            final sub = _subcategories[index];
 
             return GestureDetector(
               onTap: () {
@@ -66,9 +54,12 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => RestaurantKoreaScreen(
-                          favorites: widget.favorites,
-                          toggleFavorite: widget.toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              RestaurantKoreaScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -77,9 +68,12 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => RestaurantChinaScreen(
-                          favorites: widget.favorites,
-                          toggleFavorite: widget.toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              RestaurantChinaScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -88,9 +82,12 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => RestaurantJapanScreen(
-                          favorites: widget.favorites,
-                          toggleFavorite: widget.toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              RestaurantJapanScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -99,9 +96,12 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => RestaurantChickenScreen(
-                          favorites: widget.favorites,
-                          toggleFavorite: widget.toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              RestaurantChickenScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
@@ -110,9 +110,12 @@ class _FacilityRestaurantScreenState extends State<FacilityRestaurantScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => RestaurantMeatScreen(
-                          favorites: widget.favorites,
-                          toggleFavorite: widget.toggleFavorite,
+                        builder: (_) => FavoritesBuilder(
+                          builder: (context, favorites, toggleFavorite) =>
+                              RestaurantMeatScreen(
+                                favorites: favorites,
+                                toggleFavorite: toggleFavorite,
+                              ),
                         ),
                       ),
                     );
