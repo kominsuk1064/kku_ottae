@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:kku_ottae/features/bus/data/tago_bus_arrival_repository.dart';
-import 'package:kku_ottae/features/bus/data/tago_bus_exception.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kku_ottae/features/bus/application/bus_arrivals_controller.dart';
+import 'package:kku_ottae/features/bus/application/bus_arrivals_state.dart';
 import 'package:kku_ottae/features/bus/domain/bus_arrival.dart';
 import 'package:kku_ottae/features/bus/domain/bus_arrival_repository.dart';
 import 'package:kku_ottae/features/bus/domain/bus_route_summary.dart';
@@ -170,7 +170,7 @@ class InCityBusTab extends StatelessWidget {
    도착 정보 화면
    ========================== */
 
-class BusArrivalsScreen extends StatefulWidget {
+class BusArrivalsScreen extends ConsumerWidget {
   final BusStop stop;
   final Set<String> favorites;
   final void Function(String) toggleFavorite;
@@ -189,113 +189,17 @@ class BusArrivalsScreen extends StatefulWidget {
   });
 
   @override
-  State<BusArrivalsScreen> createState() => _BusArrivalsScreenState();
-}
-
-class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
-  bool _loading = false;
-  String? _error;
-  List<BusArrival> _arrivals = [];
-  Timer? _poller;
-  DateTime? _lastUpdated;
-  late final BusArrivalRepository _repository;
-  late final bool _ownsRepository;
-
-  @override
-  void initState() {
-    super.initState();
-    _ownsRepository = widget.repository == null;
-    _repository =
-        widget.repository ??
-        TagoBusArrivalRepository.live(
-          serviceKey: widget.tagoKeyEncoded,
-          cityCode: widget.cityCode,
-        );
-    _fetchArrivals();
-    _poller = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _fetchArrivals(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final request = BusArrivalsRequest(
+      stopId: stop.stopId,
+      serviceKey: tagoKeyEncoded,
+      cityCode: cityCode,
+      repository: repository,
     );
-  }
+    final provider = busArrivalsControllerProvider(request);
+    final state = ref.watch(provider);
+    final controller = ref.read(provider.notifier);
 
-  @override
-  void dispose() {
-    _poller?.cancel();
-    if (_ownsRepository) {
-      _repository.dispose();
-    }
-    super.dispose();
-  }
-
-  String _etaMinutesLine(BusArrival a) {
-    final m = max(0, a.minutes);
-    if (m == 0) return '곧 도착';
-    return '약 ${m}분 후';
-  }
-
-  String _etaStopsLine(BusArrival a) {
-    return a.stopsAway > 0 ? '${a.stopsAway}정류장 전' : '바로 앞';
-  }
-
-  Future<void> _fetchArrivals() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-      _arrivals = [];
-    });
-
-    try {
-      final arrivals = await _repository.fetchArrivals(
-        stopId: widget.stop.stopId,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _arrivals = arrivals;
-        _error = null;
-      });
-    } on TimeoutException {
-      if (mounted) {
-        setState(() => _error = '요청 시간 초과');
-      }
-    } on TagoBusHttpException catch (error) {
-      if (mounted) {
-        setState(() => _error = 'HTTP ${error.statusCode}');
-      }
-    } on TagoBusResponseException catch (error) {
-      if (mounted) {
-        setState(() => _error = error.message);
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _error = '응답 파싱 실패');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _lastUpdated = DateTime.now();
-        });
-      }
-    }
-  }
-
-  Future<List<BusRouteSummary>> _fetchRoutesThroughStop() async {
-    try {
-      return await _repository.fetchRoutesThroughStop(
-        stopId: widget.stop.stopId,
-      );
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stop = widget.stop;
     return Scaffold(
       appBar: AppBar(
         title: Text('${stop.stopName} · 실시간'),
@@ -304,63 +208,128 @@ class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loading ? null : _fetchArrivals,
+            onPressed:
+                state.status == BusArrivalsStatus.loading || state.isRefreshing
+                ? null
+                : () => controller.refresh(),
             tooltip: '새로고침',
           ),
         ],
       ),
       body: Column(
         children: [
-          if (_lastUpdated != null)
+          if (state.lastUpdated != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '마지막 갱신: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}',
+                  _lastUpdatedLabel(state.lastUpdated!),
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
             ),
+          SizedBox(
+            height: 2,
+            child: state.isRefreshing
+                ? const LinearProgressIndicator(minHeight: 2)
+                : null,
+          ),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : (_error != null)
-                ? Center(
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  )
-                : (_arrivals.isEmpty)
-                ? _EmptyWithRoutes(fetchRoutes: _fetchRoutesThroughStop)
-                : ListView.separated(
-                    itemCount: _arrivals.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final a = _arrivals[i];
-                      final favKey = 'busroute:${a.routeId}';
-                      final isFav = widget.favorites.contains(favKey);
+            child: switch (state.status) {
+              BusArrivalsStatus.loading => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              BusArrivalsStatus.error => _BusArrivalsError(
+                message: state.errorMessage ?? '버스 정보를 불러오지 못했습니다.',
+                onRetry: () => controller.retry(),
+              ),
+              BusArrivalsStatus.empty => _EmptyWithRoutes(routes: state.routes),
+              BusArrivalsStatus.success => _ArrivalsList(
+                arrivals: state.arrivals,
+                favorites: favorites,
+                toggleFavorite: toggleFavorite,
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-                      final line1 = _etaMinutesLine(a); // "약 X분 후" 또는 "곧 도착"
-                      final line2 = _etaStopsLine(a); // "N정류장 전" 또는 "바로 앞"
+  String _lastUpdatedLabel(DateTime lastUpdated) {
+    final hour = lastUpdated.hour.toString().padLeft(2, '0');
+    final minute = lastUpdated.minute.toString().padLeft(2, '0');
+    return '마지막 갱신: $hour:$minute';
+  }
+}
 
-                      return ListTile(
-                        leading: const Icon(Icons.directions_bus),
-                        // 요청: "몇분 후" 먼저, "몇정류장 전"은 엔터로 분리
-                        title: Text(
-                          '$line1 · ${a.routeName}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text('$line2 · ${a.direction}'),
-                        trailing: IconButton(
-                          icon: Icon(isFav ? Icons.star : Icons.star_border),
-                          color: isFav ? Colors.amber : Colors.grey,
-                          onPressed: () => widget.toggleFavorite(favKey),
-                        ),
-                      );
-                    },
-                  ),
+class _ArrivalsList extends StatelessWidget {
+  const _ArrivalsList({
+    required this.arrivals,
+    required this.favorites,
+    required this.toggleFavorite,
+  });
+
+  final List<BusArrival> arrivals;
+  final Set<String> favorites;
+  final void Function(String) toggleFavorite;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      itemCount: arrivals.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final arrival = arrivals[index];
+        final favoriteKey = 'busroute:${arrival.routeId}';
+        final isFavorite = favorites.contains(favoriteKey);
+
+        return ListTile(
+          leading: const Icon(Icons.directions_bus),
+          title: Text(
+            '${_etaMinutesLine(arrival)} · ${arrival.routeName}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text('${_etaStopsLine(arrival)} · ${arrival.direction}'),
+          trailing: IconButton(
+            icon: Icon(isFavorite ? Icons.star : Icons.star_border),
+            color: isFavorite ? Colors.amber : Colors.grey,
+            onPressed: () => toggleFavorite(favoriteKey),
+          ),
+        );
+      },
+    );
+  }
+
+  String _etaMinutesLine(BusArrival arrival) {
+    final minutes = max(0, arrival.minutes);
+    return minutes == 0 ? '곧 도착' : '약 $minutes분 후';
+  }
+
+  String _etaStopsLine(BusArrival arrival) {
+    return arrival.stopsAway > 0 ? '${arrival.stopsAway}정류장 전' : '바로 앞';
+  }
+}
+
+class _BusArrivalsError extends StatelessWidget {
+  const _BusArrivalsError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('다시 시도'),
           ),
         ],
       ),
@@ -369,47 +338,42 @@ class _BusArrivalsScreenState extends State<BusArrivalsScreen> {
 }
 
 class _EmptyWithRoutes extends StatelessWidget {
-  final Future<List<BusRouteSummary>> Function() fetchRoutes;
-  const _EmptyWithRoutes({required this.fetchRoutes});
+  const _EmptyWithRoutes({required this.routes});
+
+  final List<BusRouteSummary> routes;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: fetchRoutes(),
-      builder: (context, snap) {
-        final routes = snap.data ?? [];
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.info_outline, color: Colors.grey),
-                const SizedBox(height: 8),
-                const Text(
-                  '현재 도착 예정 차량이 없습니다.',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                if (routes.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    '지나는 노선',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: routes
-                        .map((route) => Chip(label: Text(route.routeName)))
-                        .toList(),
-                  ),
-                ],
-              ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.info_outline, color: Colors.grey),
+            const SizedBox(height: 8),
+            const Text(
+              '현재 도착 예정 차량이 없습니다.',
+              style: TextStyle(color: Colors.grey),
             ),
-          ),
-        );
-      },
+            if (routes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text(
+                '지나는 노선',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: routes
+                    .map((route) => Chip(label: Text(route.routeName)))
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
