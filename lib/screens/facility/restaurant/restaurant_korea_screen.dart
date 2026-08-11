@@ -122,7 +122,7 @@ class _RestaurantKoreaScreenState extends State<RestaurantKoreaScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

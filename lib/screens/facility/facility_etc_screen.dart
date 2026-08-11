@@ -117,7 +117,7 @@ class _FacilityEtcScreenState extends State<FacilityEtcScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

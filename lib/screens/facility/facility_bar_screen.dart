@@ -128,7 +128,7 @@ class _FacilityBarScreenState extends State<FacilityBarScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );
