@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'feedback_screen.dart';  // 피드백 화면 import
-import 'change_password_screen.dart';  // 비밀번호 변경 화면 import
+import 'feedback_screen.dart'; // 피드백 화면 import
+import 'change_password_screen.dart'; // 비밀번호 변경 화면 import
 
 class MyPageScreen extends StatefulWidget {
   final Set<String> myFavorites;
@@ -28,7 +28,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
     if (uid == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      if (!mounted) return;
+
       if (doc.exists) {
         final data = doc.data();
         setState(() {
@@ -36,8 +41,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
           studentId = data?['studentId'] ?? '';
         });
       }
-    } catch (e) {
-      print('❌ 사용자 정보 가져오기 실패: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Failed to fetch user profile: $e\n$stackTrace');
     }
   }
 
@@ -57,7 +62,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),
@@ -70,12 +75,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
               ],
             ),
           ],
@@ -89,10 +100,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF00552E),
       appBar: AppBar(
-        title: const Text(
-          '내 정보',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('내 정보', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF00552E),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -104,17 +112,21 @@ class _MyPageScreenState extends State<MyPageScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('이름: ${name ?? '불러오는 중...'}',
-                      style: const TextStyle(fontSize: 18)),
+                  Text(
+                    '이름: ${name ?? '불러오는 중...'}',
+                    style: const TextStyle(fontSize: 18),
+                  ),
                   const SizedBox(height: 6),
-                  Text('학번: ${studentId ?? ''}',
-                      style: const TextStyle(fontSize: 16)),
+                  Text(
+                    '학번: ${studentId ?? ''}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
             ),
@@ -145,7 +157,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
                 );
               },
             ),
@@ -154,7 +168,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
               title: '로그아웃',
               subtitle: '계정에서 로그아웃',
               onTap: () {
-                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
               },
             ),
           ],

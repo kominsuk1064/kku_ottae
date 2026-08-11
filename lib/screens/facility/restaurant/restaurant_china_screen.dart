@@ -115,7 +115,7 @@ class _RestaurantChinaScreenState extends State<RestaurantChinaScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

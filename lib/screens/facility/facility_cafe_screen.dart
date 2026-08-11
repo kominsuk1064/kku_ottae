@@ -116,7 +116,7 @@ class _FacilityCafeScreenState extends State<FacilityCafeScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 24),
             ],
           );

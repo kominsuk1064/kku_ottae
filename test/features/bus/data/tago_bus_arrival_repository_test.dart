@@ -89,10 +89,7 @@ void main() {
 
       final routes = await repository.fetchRoutesThroughStop(stopId: 'stop');
 
-      expect(
-        routes,
-        [const BusRouteSummary(routeId: 'A', routeName: '100')],
-      );
+      expect(routes, [const BusRouteSummary(routeId: 'A', routeName: '100')]);
     });
   });
 }

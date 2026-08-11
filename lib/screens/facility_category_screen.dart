@@ -6,7 +6,7 @@ import 'facility/facility_cafe_screen.dart';
 import 'facility/facility_bar_screen.dart';
 import 'facility/facility_mart_screen.dart';
 import 'facility/facility_etc_screen.dart';
-import 'facility/facility_Pc_screen.dart';
+import 'facility/facility_pc_screen.dart';
 
 class FacilityCategoryScreen extends StatelessWidget {
   const FacilityCategoryScreen({super.key});
