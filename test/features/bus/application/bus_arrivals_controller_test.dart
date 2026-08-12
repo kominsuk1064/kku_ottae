@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kku_ottae/core/observability/app_error_reporter.dart';
 import 'package:kku_ottae/features/bus/application/bus_arrivals_controller.dart';
 import 'package:kku_ottae/features/bus/application/bus_arrivals_state.dart';
 import 'package:kku_ottae/features/bus/application/bus_providers.dart';
@@ -9,6 +10,8 @@ import 'package:kku_ottae/features/bus/data/tago_bus_exception.dart';
 import 'package:kku_ottae/features/bus/domain/bus_arrival.dart';
 import 'package:kku_ottae/features/bus/domain/bus_arrival_repository.dart';
 import 'package:kku_ottae/features/bus/domain/bus_route_summary.dart';
+
+import '../../../support/fake_app_error_reporter.dart';
 
 void main() {
   group('BusArrivalsController', () {
@@ -48,6 +51,7 @@ void main() {
     });
 
     test('timeout 오류를 표시하고 재시도로 복구한다', () async {
+      final errorReporter = FakeAppErrorReporter();
       var shouldFail = true;
       final repository = _FakeBusArrivalRepository(
         fetchArrivals: (_) async {
@@ -58,13 +62,19 @@ void main() {
           return [testArrival];
         },
       );
-      final harness = _createHarness(repository);
+      final harness = _createHarness(repository, errorReporter: errorReporter);
       addTearDown(harness.dispose);
 
       await _settle(harness.container);
 
       expect(harness.readState().status, BusArrivalsStatus.error);
       expect(harness.readState().errorMessage, '요청 시간 초과');
+      expect(errorReporter.reports, hasLength(1));
+      expect(
+        errorReporter.reports.single.reason,
+        'Bus arrivals refresh failed',
+      );
+      expect(errorReporter.reports.single.fatal, isFalse);
 
       await harness.readController().retry();
 
@@ -145,10 +155,15 @@ const testArrival = BusArrival(
 );
 final testNow = DateTime(2026, 8, 11, 12, 0);
 
-_ControllerHarness _createHarness(_FakeBusArrivalRepository repository) {
+_ControllerHarness _createHarness(
+  _FakeBusArrivalRepository repository, {
+  FakeAppErrorReporter? errorReporter,
+}) {
   late _ManualPeriodicTimer timer;
+  final reporter = errorReporter ?? FakeAppErrorReporter();
   final container = ProviderContainer(
     overrides: [
+      appErrorReporterProvider.overrideWithValue(reporter),
       busArrivalRepositoryFactoryProvider.overrideWithValue((_) => repository),
       busClockProvider.overrideWithValue(() => testNow),
       busPeriodicTimerFactoryProvider.overrideWithValue((duration, callback) {

@@ -79,6 +79,7 @@ if (androidConfigurationErrors.isNotEmpty()) {
 
 if (googleServicesFile.isFile) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 } else {
     logger.lifecycle(
         "google-services.json is missing; Firebase resources are skipped for this debug build.",
@@ -104,6 +105,7 @@ android {
         targetSdk = flutter.targetSdkVersion.toInt()
         versionCode = flutter.versionCode?.toInt() ?: 1
         versionName = flutter.versionName
+        manifestPlaceholders["crashlyticsCollectionEnabled"] = "false"
     }
 
     signingConfigs {
@@ -119,6 +121,7 @@ android {
 
     buildTypes {
         release {
+            manifestPlaceholders["crashlyticsCollectionEnabled"] = "true"
             signingConfig = signingConfigs.findByName("release")
         }
     }

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/observability/app_error_handlers.dart';
+import 'core/observability/app_error_report.dart';
+import 'core/observability/app_error_reporter.dart';
 import 'features/favorites/presentation/favorites_builder.dart';
 
 import 'screens/initial_screen.dart';
@@ -17,8 +22,42 @@ import 'screens/facility_category_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // ✅ Firebase 초기화
-  runApp(const ProviderScope(child: MyApp()));
+  await Firebase.initializeApp();
+
+  final errorReporter = await _createErrorReporter();
+  AppErrorHandlers.install(errorReporter);
+
+  runApp(
+    ProviderScope(
+      overrides: [appErrorReporterProvider.overrideWithValue(errorReporter)],
+      child: const MyApp(),
+    ),
+  );
+}
+
+Future<AppErrorReporter> _createErrorReporter() async {
+  const localReporter = DeveloperLogAppErrorReporter();
+
+  try {
+    final crashlytics = FirebaseCrashlytics.instance;
+    await crashlytics.setCrashlyticsCollectionEnabled(kReleaseMode);
+    if (kReleaseMode) {
+      return CompositeAppErrorReporter([
+        localReporter,
+        FirebaseCrashlyticsAppErrorReporter(crashlytics),
+      ]);
+    }
+  } catch (error, stackTrace) {
+    await localReporter.record(
+      AppErrorReport(
+        error: error,
+        stackTrace: stackTrace,
+        reason: 'Crashlytics initialization failed',
+      ),
+    );
+  }
+
+  return localReporter;
 }
 
 class MyApp extends StatelessWidget {

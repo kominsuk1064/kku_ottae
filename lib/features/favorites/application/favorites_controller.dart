@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/app_error_report.dart';
+import '../../../core/observability/app_error_reporter.dart';
 import '../domain/favorite_repository.dart';
 import 'favorites_providers.dart';
 import 'favorites_state.dart';
@@ -17,6 +18,7 @@ final class FavoritesController extends Notifier<FavoritesState> {
   static const saveErrorMessage = '즐겨찾기를 저장하지 못했습니다.';
 
   late final FavoriteRepository _repository;
+  late final AppErrorReporter _errorReporter;
   Future<void>? _loadOperation;
   Future<void>? _saveOperation;
   Set<String>? _pendingFavorites;
@@ -25,6 +27,7 @@ final class FavoritesController extends Notifier<FavoritesState> {
   @override
   FavoritesState build() {
     _repository = ref.read(favoriteRepositoryProvider);
+    _errorReporter = ref.read(appErrorReporterProvider);
     ref.onDispose(() => _disposed = true);
     unawaited(Future<void>.microtask(load));
     return FavoritesState.loading();
@@ -92,11 +95,14 @@ final class FavoritesController extends Notifier<FavoritesState> {
       if (_disposed) {
         return;
       }
-      developer.log(
-        '즐겨찾기 복원 실패',
-        name: 'kku_ottae.favorites',
-        error: error,
-        stackTrace: stackTrace,
+      unawaited(
+        _errorReporter.record(
+          AppErrorReport(
+            error: error,
+            stackTrace: stackTrace,
+            reason: 'Favorites restore failed',
+          ),
+        ),
       );
       state = FavoritesState.loadFailure(message: loadErrorMessage);
     }
@@ -139,11 +145,14 @@ final class FavoritesController extends Notifier<FavoritesState> {
           return;
         }
         _pendingFavorites = null;
-        developer.log(
-          '즐겨찾기 저장 실패',
-          name: 'kku_ottae.favorites',
-          error: error,
-          stackTrace: stackTrace,
+        unawaited(
+          _errorReporter.record(
+            AppErrorReport(
+              error: error,
+              stackTrace: stackTrace,
+              reason: 'Favorites persistence failed',
+            ),
+          ),
         );
         state = FavoritesState.saveFailure(
           favorites: state.favorites,
