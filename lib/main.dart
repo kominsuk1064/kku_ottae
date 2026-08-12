@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/observability/app_error_handlers.dart';
 import 'core/observability/app_error_report.dart';
 import 'core/observability/app_error_reporter.dart';
+import 'core/observability/app_performance_monitor.dart';
 import 'features/favorites/presentation/favorites_builder.dart';
 
 import 'screens/initial_screen.dart';
@@ -26,13 +28,41 @@ void main() async {
 
   final errorReporter = await _createErrorReporter();
   AppErrorHandlers.install(errorReporter);
+  final performanceMonitor = await _createPerformanceMonitor(errorReporter);
 
   runApp(
     ProviderScope(
-      overrides: [appErrorReporterProvider.overrideWithValue(errorReporter)],
+      overrides: [
+        appErrorReporterProvider.overrideWithValue(errorReporter),
+        appPerformanceMonitorProvider.overrideWithValue(performanceMonitor),
+      ],
       child: const MyApp(),
     ),
   );
+}
+
+Future<AppPerformanceMonitor> _createPerformanceMonitor(
+  AppErrorReporter errorReporter,
+) async {
+  try {
+    final performance = FirebasePerformance.instance;
+    await performance.setPerformanceCollectionEnabled(kReleaseMode);
+    if (kReleaseMode) {
+      return GuardedAppPerformanceMonitor(
+        FirebaseAppPerformanceMonitor(performance),
+      );
+    }
+  } catch (error, stackTrace) {
+    await errorReporter.record(
+      AppErrorReport(
+        error: error,
+        stackTrace: stackTrace,
+        reason: 'Performance monitoring initialization failed',
+      ),
+    );
+  }
+
+  return const NoOpAppPerformanceMonitor();
 }
 
 Future<AppErrorReporter> _createErrorReporter() async {
