@@ -1,66 +1,23 @@
-// lib/screens/feedback_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kku_ottae/features/feedback/application/feedback_submission_controller.dart';
+import 'package:kku_ottae/features/feedback/application/feedback_submission_state.dart';
 
-class FeedbackScreen extends StatefulWidget {
+class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
 
   @override
-  State<FeedbackScreen> createState() => _FeedbackScreenState();
+  ConsumerState<FeedbackScreen> createState() => _FeedbackScreenState();
 }
 
-class _FeedbackScreenState extends State<FeedbackScreen> {
-  int _rating = 5;
+class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
+  static const _ratingKey = ValueKey('feedback-rating');
+  static const _commentFieldKey = ValueKey('feedback-comment-field');
+  static const _messageKey = ValueKey('feedback-message');
+  static const _submitButtonKey = ValueKey('feedback-submit-button');
+
   final TextEditingController _commentController = TextEditingController();
-  bool _isSubmitting = false;
-
-  Future<void> _submitFeedback() async {
-    final text = _commentController.text.trim();
-    if (text.length < 5) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('코멘트를 5자 이상 입력해주세요.')));
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
-      setState(() => _isSubmitting = false);
-      return;
-    }
-
-    try {
-      await FirebaseFirestore.instance.collection('feedbacks').add({
-        'userId': uid,
-        'rating': _rating,
-        'comment': text,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('피드백이 정상적으로 전송되었습니다!')));
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('전송 실패: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -70,53 +27,139 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(feedbackSubmissionControllerProvider);
+    ref.listen<FeedbackSubmissionState>(
+      feedbackSubmissionControllerProvider,
+      _handleStateChange,
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('피드백 보내기')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('앱 전반에 대한 만족도를 남겨주세요!', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 12),
-            RatingBar.builder(
-              initialRating: _rating.toDouble(),
-              minRating: 1,
-              direction: Axis.horizontal,
-              allowHalfRating: false,
-              itemCount: 5,
-              itemBuilder: (_, __) =>
-                  const Icon(Icons.star, color: Colors.amber),
-              onRatingUpdate: (value) =>
-                  setState(() => _rating = value.toInt()),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _commentController,
-              maxLines: 5,
-              maxLength: 300,
-              decoration: const InputDecoration(
-                hintText: '코멘트를 입력해 주세요 (5자 이상)',
-                border: OutlineInputBorder(),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    '앱 전반에 대한 만족도를 남겨주세요!',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Semantics(
+                      key: _ratingKey,
+                      label: '만족도 ${state.rating}점',
+                      child: RatingBar.builder(
+                        initialRating: state.rating.toDouble(),
+                        minRating: 1,
+                        direction: Axis.horizontal,
+                        allowHalfRating: false,
+                        ignoreGestures: state.isSubmitting,
+                        itemCount: 5,
+                        itemSize: 40,
+                        itemBuilder: (_, __) =>
+                            const Icon(Icons.star, color: Colors.amber),
+                        onRatingUpdate: (value) => ref
+                            .read(feedbackSubmissionControllerProvider.notifier)
+                            .updateRating(value.toInt()),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    key: _commentFieldKey,
+                    controller: _commentController,
+                    readOnly: state.isSubmitting,
+                    maxLines: 5,
+                    maxLength: 300,
+                    textInputAction: TextInputAction.newline,
+                    decoration: const InputDecoration(
+                      hintText: '코멘트를 입력해 주세요 (5자 이상)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 56,
+                    child: state.status != FeedbackSubmissionStatus.failure
+                        ? null
+                        : Center(
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                state.message!,
+                                key: _messageKey,
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFFB3261E),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      key: _submitButtonKey,
+                      onPressed: state.isSubmitting ? null : _submitFeedback,
+                      child: state.isSubmitting
+                          ? const SizedBox.square(
+                              dimension: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              state.status == FeedbackSubmissionStatus.failure
+                                  ? '다시 시도'
+                                  : '보내기',
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitFeedback,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('보내기'),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  void _submitFeedback() {
+    FocusScope.of(context).unfocus();
+    ref
+        .read(feedbackSubmissionControllerProvider.notifier)
+        .submit(comment: _commentController.text);
+  }
+
+  void _handleStateChange(
+    FeedbackSubmissionState? previous,
+    FeedbackSubmissionState next,
+  ) {
+    if (!mounted ||
+        next.status != FeedbackSubmissionStatus.success ||
+        previous?.status == FeedbackSubmissionStatus.success) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            next.message ?? FeedbackSubmissionController.successMessage,
+          ),
+        ),
+      );
+    Navigator.pop(context);
   }
 }
