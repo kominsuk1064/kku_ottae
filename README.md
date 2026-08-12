@@ -4,7 +4,7 @@
 
 건국대학교 글로컬캠퍼스 학생이 버스 도착 정보, 주변 편의시설, 교내 지도를 한 앱에서 확인할 수 있도록 만든 Flutter 앱입니다.
 
-이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인·회원가입·계정 세션 흐름에도 같은 경계를 확장했습니다.
+이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인·회원가입·계정 세션·프로필 조회 흐름에도 같은 경계를 확장했습니다.
 
 ## 해결하려는 문제
 
@@ -21,7 +21,7 @@
 | 영역 | 기술 | 용도 |
 | --- | --- | --- |
 | UI | Flutter | Android/iOS 앱 UI |
-| 상태·의존성 | flutter_riverpod | 버스·즐겨찾기·인증 상태와 의존성 관리 |
+| 상태·의존성 | flutter_riverpod | 버스·즐겨찾기·인증·프로필 상태와 의존성 관리 |
 | 네트워크 | http | TAGO 버스 API 호출 |
 | 로컬 저장소 | SharedPreferences | 즐겨찾기 영구 저장 |
 | 백엔드 | Firebase Authentication, Cloud Firestore | 인증, 사용자 정보, 피드백 |
@@ -39,6 +39,7 @@
 | 성공 응답 중심의 화면 처리 | loading, empty, success, error, retry 상태 명시 |
 | 주기 요청이 화면 생명주기와 느슨하게 연결됨 | `autoDispose`, 타이머 취소, 중복 요청 방지 적용 |
 | SharedPreferences 접근과 UI 상태 변경이 결합됨 | local storage, Repository, controller로 분리 |
+| 마이페이지에서 인증 사용자와 Firestore 문서를 직접 조회함 | Auth·Profile Repository와 프로필 controller로 분리 |
 | 외부 서비스 없이는 검증하기 어려움 | HTTP, Repository, 저장소를 fake로 교체 가능한 경계 구성 |
 
 UI를 전면 재설계하지 않았으며 기존 화면과 즐겨찾기 저장 키(`favorites`)를 유지했습니다.
@@ -63,12 +64,12 @@ lib/
 │  │  └─ presentation/ # 기존 화면과 Riverpod 상태 연결
 │  └─ profile/
 │     ├─ domain/       # 사용자 프로필 모델과 Repository 계약
-│     ├─ data/         # Firestore 프로필 저장 구현과 오류 매핑
-│     └─ application/  # 프로필 저장소 의존성 제공
+│     ├─ data/         # Firestore 프로필 조회·저장, 문서 파싱과 오류 매핑
+│     └─ application/  # 프로필 조회 상태 관리와 저장소 의존성 제공
 └─ screens/            # 기존 화면 및 vertical slice의 UI 연결 지점
 ```
 
-현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·인증 세션과 프로필 저장 로직에 feature-first 경계를 도입했고, 마이페이지 프로필 조회·피드백 저장·편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
+현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·인증 세션과 프로필 조회·저장 로직에 feature-first 경계를 도입했고, 피드백 저장·편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
 
 ### 버스 데이터 흐름
 
@@ -127,6 +128,17 @@ MyPageScreen ─→ SessionSignOutBuilder             │  → FirebaseAuthRepos
 ```
 
 비밀번호 변경은 현재 비밀번호 재인증과 새 비밀번호 적용을 하나의 Repository 작업으로 처리합니다. Firebase 내부 오류는 사용자 메시지와 분리하며 진행 중인 중복 요청을 차단합니다. 로그아웃은 Firebase 세션 종료에 성공한 뒤에만 초기 화면으로 이동하고, 실패하면 현재 화면을 유지한 채 다시 시도할 수 있습니다.
+
+### 프로필 데이터 흐름
+
+```text
+MyPageScreen
+  → UserProfileController (Riverpod)
+  ├─ AuthRepository → 현재 로그인 사용자
+  └─ UserProfileRepository → Firestore users/{uid}
+```
+
+마이페이지는 Firebase SDK를 직접 호출하지 않고 loading, empty, success, error 상태만 렌더링합니다. 프로필 문서가 없거나 필드가 누락된 경우를 안전하게 처리하며, 실패 상세는 디버깅 로그에 남기고 사용자에게는 작업에 맞는 메시지와 재시도를 제공합니다.
 
 ## 개발 환경
 
@@ -187,7 +199,7 @@ flutter test
 flutter build apk --debug
 ```
 
-버스·즐겨찾기·인증 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore에 연결하지 않도록 HTTP client, Repository, storage를 fake 또는 주입 가능한 구현으로 대체합니다. 마이페이지 프로필 조회와 피드백 저장 흐름은 아직 자동화 테스트 범위에 포함되지 않습니다.
+버스·즐겨찾기·인증·프로필 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore에 연결하지 않도록 HTTP client, Repository, storage를 fake 또는 주입 가능한 구현으로 대체합니다. 피드백 저장 흐름은 아직 자동화 테스트 범위에 포함되지 않습니다.
 
 - TAGO List/Map/null/빈 응답 및 XML 오류 파싱
 - 네트워크 성공, 빈 응답, HTTP 오류, timeout
@@ -200,6 +212,8 @@ flutter build apk --debug
 - Firestore 프로필 오류 매핑, 저장 실패 복구와 회원가입 화면 상태
 - 비밀번호 재인증·변경의 검증, 오류 변환, loading/success 상태
 - 실제 로그아웃, 중복 요청 방지, 실패 후 재시도와 화면 이동
+- Firestore 프로필 문서 없음·필드 누락 파싱과 현재 사용자 조회
+- 프로필 loading/empty/success/error/retry 상태와 작은 화면 렌더링
 
 ## CI
 
@@ -215,7 +229,7 @@ flutter build apk --debug
 
 ## 현재 제약과 다음 과제
 
-- 마이페이지 프로필 조회·피드백 저장은 아직 Firebase와 화면에 직접 결합되어 있으며 자동화 테스트가 없습니다.
+- 피드백 저장은 아직 Firestore와 화면에 직접 결합되어 있으며 자동화 테스트가 없습니다.
 - 시외버스, 편의시설, 지도 화면은 기존 screen 중심 구조와 고정 데이터를 유지합니다.
 - 일부 기존 화면에는 작은 기기에서 추가 검증이 필요한 고정 크기 UI가 남아 있습니다.
 - WebView 지도는 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
