@@ -42,6 +42,7 @@
 | 마이페이지에서 인증 사용자와 Firestore 문서를 직접 조회함 | Auth·Profile Repository와 프로필 controller로 분리 |
 | 피드백 화면에서 사용자 확인과 Firestore 저장을 직접 처리함 | Auth·Feedback Repository와 제출 controller로 분리 |
 | WebView 오류를 로그만 남기고 빈 화면으로 유지함 | 지도 controller, WebView 어댑터, loading·error·retry 상태로 분리 |
+| 초기·홈 화면의 큰 고정 여백과 버튼 높이가 작은 화면에서 넘침 | 화면 제약 기반 크기, 최대 너비, 스크롤 가능한 레이아웃 적용 |
 | 외부 서비스 없이는 검증하기 어려움 | HTTP, Repository, 저장소를 fake로 교체 가능한 경계 구성 |
 
 UI를 전면 재설계하지 않았으며 기존 화면과 즐겨찾기 저장 키(`favorites`)를 유지했습니다.
@@ -172,6 +173,10 @@ CampusMapScreen
 
 화면은 WebView controller를 직접 다루지 않고 플랫폼 어댑터를 통해 로드와 새로고침만 요청합니다. 로딩 진행률, 성공, 주 프레임 네트워크·HTTP 오류, 20초 타임아웃과 재시도를 불변 상태로 관리하며, 이미지 같은 하위 리소스 하나의 실패가 전체 지도 오류 화면으로 바뀌지 않도록 구분합니다. provider가 해제되면 로드 타이머를 취소하고, 상세 WebView 오류는 디버깅 로그에만 남깁니다. 앱에서 호출하는 지도와 TAGO 주소는 HTTPS를 사용하며 Android manifest의 전역 cleartext 허용은 제거했습니다.
 
+### 반응형 진입 화면
+
+`InitialScreen`과 `HomeScreen`은 `LayoutBuilder`에서 사용 가능한 화면 제약을 읽어 로고와 간격의 상·하한을 정합니다. 콘텐츠에는 최대 너비를 적용해 태블릿과 가로 화면에서 과도하게 늘어나지 않게 하고, 세로 공간이 부족하면 `SingleChildScrollView`로 모든 동작에 접근할 수 있습니다. 기존 로그인·회원가입·프로필·버스·편의시설·학교지도 이동 흐름과 색상, 로고 자산은 유지했습니다.
+
 ## 개발 환경
 
 - Flutter `3.35.4` (CI 기준)
@@ -250,6 +255,7 @@ flutter build apk --debug
 - 피드백 submitting/error/retry/success 상태와 작은 화면 렌더링
 - 지도 로딩 진행률, 주 프레임·하위 리소스 네트워크·HTTP 오류 구분, timeout과 중복 새로고침
 - 지도 loading/error/retry/success 상태와 작은 화면 렌더링
+- 초기·홈 화면의 320×480 세로 및 568×320 가로 레이아웃과 기존 네비게이션
 
 ## CI
 
@@ -266,7 +272,7 @@ flutter build apk --debug
 ## 현재 제약과 다음 과제
 
 - 시외버스와 편의시설 화면은 기존 screen 중심 구조와 고정 데이터를 유지합니다.
-- 일부 기존 화면에는 작은 기기에서 추가 검증이 필요한 고정 크기 UI가 남아 있습니다.
+- 편의시설 카테고리와 일부 상세 화면에는 작은 기기에서 추가 검증이 필요한 고정 크기 UI가 남아 있습니다.
 - WebView 지도는 오류·타임아웃·재시도 상태를 제공하지만 콘텐츠 가용성은 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
 - 현재 CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
 - Android release signing은 운영 키로 구성되지 않았고 스토어 배포 자동화도 구현하지 않았습니다.
