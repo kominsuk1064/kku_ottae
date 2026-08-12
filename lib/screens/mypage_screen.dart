@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kku_ottae/features/auth/presentation/session_sign_out_builder.dart';
 import 'feedback_screen.dart'; // 피드백 화면 import
 import 'change_password_screen.dart'; // 비밀번호 변경 화면 import
 
@@ -50,7 +51,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -72,23 +74,26 @@ class _MyPageScreenState extends State<MyPageScreen> {
           children: [
             Icon(icon, size: 36, color: const Color(0xFF00552E)),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
+            if (trailing != null) ...[const SizedBox(width: 12), trailing],
           ],
         ),
       ),
@@ -163,17 +168,24 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 );
               },
             ),
-            buildMenuCard(
-              icon: Icons.logout,
-              title: '로그아웃',
-              subtitle: '계정에서 로그아웃',
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/',
-                  (route) => false,
-                );
-              },
+            SessionSignOutBuilder(
+              onSignedOut: () => Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/',
+                (route) => false,
+              ),
+              builder: (context, state, signOut) => buildMenuCard(
+                icon: Icons.logout,
+                title: '로그아웃',
+                subtitle: state.isSigningOut ? '로그아웃 중...' : '계정에서 로그아웃',
+                onTap: state.isSigningOut ? null : signOut,
+                trailing: state.isSigningOut
+                    ? const SizedBox.square(
+                        dimension: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
+              ),
             ),
           ],
         ),

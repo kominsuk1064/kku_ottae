@@ -97,6 +97,41 @@ final class FirebaseAuthRepository implements AuthRepository {
     }
   }
 
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      final email = user?.email;
+      if (user == null || email == null) {
+        throw const AuthFailure(
+          reason: AuthFailureReason.noCurrentUser,
+          debugMessage: 'Cannot change password without an email user.',
+        );
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (error, stackTrace) {
+      Error.throwWithStackTrace(mapFirebaseAuthFailure(error), stackTrace);
+    }
+  }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      await _firebaseAuth.signOut();
+    } on FirebaseAuthException catch (error, stackTrace) {
+      Error.throwWithStackTrace(mapFirebaseAuthFailure(error), stackTrace);
+    }
+  }
+
   AuthUser _mapUser(User? user) {
     if (user == null) {
       throw const AuthFailure(

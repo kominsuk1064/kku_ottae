@@ -340,6 +340,7 @@ final class SignupController extends Notifier<SignupState> {
       AuthFailureReason.tooManyRequests => '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
       AuthFailureReason.networkUnavailable => '네트워크 연결을 확인해주세요.',
       AuthFailureReason.noCurrentUser => '인증할 계정 정보가 없습니다. 다시 시도해주세요.',
+      AuthFailureReason.requiresRecentLogin ||
       AuthFailureReason.userDisabled ||
       AuthFailureReason.userNotFound ||
       AuthFailureReason.wrongPassword ||
