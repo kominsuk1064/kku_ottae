@@ -7,6 +7,7 @@ import 'facility/facility_bar_screen.dart';
 import 'facility/facility_mart_screen.dart';
 import 'facility/facility_etc_screen.dart';
 import 'facility/facility_pc_screen.dart';
+import 'facility/widgets/facility_category_grid.dart';
 
 class FacilityCategoryScreen extends StatelessWidget {
   const FacilityCategoryScreen({super.key});
@@ -29,134 +30,106 @@ class FacilityCategoryScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF00552E),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: GridView.builder(
-          itemCount: _categories.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisExtent: 140,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
-          itemBuilder: (context, index) {
-            final category = _categories[index];
+      body: FacilityCategoryGrid(
+        key: const ValueKey('facility-category-grid'),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
 
-            return GestureDetector(
-              onTap: () {
-                // 🔁 카테고리별 분기처리
-                switch (category.name) {
-                  case '식당':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FacilityRestaurantScreen(),
-                      ),
-                    );
-                    break;
-                  case '카페':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FavoritesBuilder(
-                          builder: (context, favorites, toggleFavorite) =>
-                              FacilityCafeScreen(
-                                favorites: favorites,
-                                toggleFavorite: toggleFavorite,
-                              ),
-                        ),
-                      ),
-                    );
-                    break;
-                  case '술집':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FavoritesBuilder(
-                          builder: (context, favorites, toggleFavorite) =>
-                              FacilityBarScreen(
-                                favorites: favorites,
-                                toggleFavorite: toggleFavorite,
-                              ),
-                        ),
-                      ),
-                    );
-                    break;
-                  case '편의점/마트':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FavoritesBuilder(
-                          builder: (context, favorites, toggleFavorite) =>
-                              FacilityMartScreen(
-                                favorites: favorites,
-                                toggleFavorite: toggleFavorite,
-                              ),
-                        ),
-                      ),
-                    );
-                    break;
-                  case '오락시설':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FavoritesBuilder(
-                          builder: (context, favorites, toggleFavorite) =>
-                              FacilityPcScreen(
-                                favorites: favorites,
-                                toggleFavorite: toggleFavorite,
-                              ),
-                        ),
-                      ),
-                    );
-                    break;
-                  case '기타 생활시설':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FavoritesBuilder(
-                          builder: (context, favorites, toggleFavorite) =>
-                              FacilityEtcScreen(
-                                favorites: favorites,
-                                toggleFavorite: toggleFavorite,
-                              ),
-                        ),
-                      ),
-                    );
-                    break;
-                  default:
-                    // 혹시 대비
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${category.name} 화면이 없습니다.')),
-                    );
-                }
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(category.emoji, style: const TextStyle(fontSize: 36)),
-                    const SizedBox(height: 10),
-                    Text(
-                      category.name,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+          return FacilityCategoryTile(
+            key: ValueKey('facility-category-${category.name}'),
+            label: category.name,
+            symbol: category.emoji,
+            onTap: () {
+              // 🔁 카테고리별 분기처리
+              switch (category.name) {
+                case '식당':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FacilityRestaurantScreen(),
+                    ),
+                  );
+                  break;
+                case '카페':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FavoritesBuilder(
+                        builder: (context, favorites, toggleFavorite) =>
+                            FacilityCafeScreen(
+                              favorites: favorites,
+                              toggleFavorite: toggleFavorite,
+                            ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+                  );
+                  break;
+                case '술집':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FavoritesBuilder(
+                        builder: (context, favorites, toggleFavorite) =>
+                            FacilityBarScreen(
+                              favorites: favorites,
+                              toggleFavorite: toggleFavorite,
+                            ),
+                      ),
+                    ),
+                  );
+                  break;
+                case '편의점/마트':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FavoritesBuilder(
+                        builder: (context, favorites, toggleFavorite) =>
+                            FacilityMartScreen(
+                              favorites: favorites,
+                              toggleFavorite: toggleFavorite,
+                            ),
+                      ),
+                    ),
+                  );
+                  break;
+                case '오락시설':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FavoritesBuilder(
+                        builder: (context, favorites, toggleFavorite) =>
+                            FacilityPcScreen(
+                              favorites: favorites,
+                              toggleFavorite: toggleFavorite,
+                            ),
+                      ),
+                    ),
+                  );
+                  break;
+                case '기타 생활시설':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FavoritesBuilder(
+                        builder: (context, favorites, toggleFavorite) =>
+                            FacilityEtcScreen(
+                              favorites: favorites,
+                              toggleFavorite: toggleFavorite,
+                            ),
+                      ),
+                    ),
+                  );
+                  break;
+                default:
+                  // 혹시 대비
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${category.name} 화면이 없습니다.')),
+                  );
+              }
+            },
+          );
+        },
       ),
     );
   }
