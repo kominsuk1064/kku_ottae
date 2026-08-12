@@ -25,7 +25,7 @@
 | 네트워크 | http | TAGO 버스 API 호출 |
 | 로컬 저장소 | SharedPreferences | 즐겨찾기 영구 저장 |
 | 백엔드 | Firebase Authentication, Cloud Firestore | 인증, 사용자 정보, 피드백 |
-| 운영 관측 | Firebase Crashlytics | release 환경의 fatal·non-fatal 오류 보고 |
+| 운영 관측 | Firebase Crashlytics, Firebase Performance | release 환경의 오류 보고와 TAGO 요청 성능 추적 |
 | 지도 | webview_flutter | 공식 캠퍼스 지도 표시 |
 | 자동화 | GitHub Actions | 포맷, 정적 분석, 테스트, debug APK와 수동 서명 AAB 빌드 |
 
@@ -47,6 +47,7 @@
 | 편의시설 그리드와 상세 카드가 고정 폭을 가정해 긴 이름·주소가 넘침 | 폭별 1·2·3열 그리드, 콘텐츠 최대 너비, 줄바꿈 가능한 공용 카드 적용 |
 | Android가 예제 식별자와 debug release 서명을 사용함 | 정식 application ID, 외부 키스토어 기반 release 서명과 누락 설정 preflight 적용 |
 | 처리된 오류가 로컬 로그에만 남아 운영 장애를 확인하기 어려움 | 주입 가능한 오류 reporter, 전역 handler와 release 전용 Crashlytics 적용 |
+| TAGO 요청의 지연·결과 분포를 운영 환경에서 확인할 수 없음 | 비밀값을 제외한 custom trace와 release 전용 Firebase Performance 적용 |
 | 외부 서비스 없이는 검증하기 어려움 | HTTP, Repository, 저장소를 fake로 교체 가능한 경계 구성 |
 
 UI를 전면 재설계하지 않았으며 기존 화면과 즐겨찾기 저장 키(`favorites`)를 유지했습니다.
@@ -56,7 +57,7 @@ UI를 전면 재설계하지 않았으며 기존 화면과 즐겨찾기 저장 �
 ```text
 lib/
 ├─ core/
-│  └─ observability/  # 오류 모델, reporter와 전역 Flutter·비동기 handler
+│  └─ observability/  # 오류 reporter, 전역 handler와 성능 monitor
 ├─ features/
 │  ├─ auth/
 │  │  ├─ domain/       # 인증 모델, 실패 유형, Repository 계약
@@ -193,6 +194,20 @@ BusArrivalsController / FavoritesController
 
 전역 Flutter framework 오류와 처리되지 않은 비동기 오류는 fatal로, 버스 조회와 즐겨찾기 복원·저장 실패는 사용자 상태를 유지하면서 non-fatal로 기록합니다. reporter는 Riverpod provider로 주입하므로 테스트에서는 Firebase 대신 fake를 사용합니다. debug와 profile 빌드는 원격 수집을 비활성화하고 로컬 개발 로그만 남깁니다. 이메일, 학번, API 키와 같은 사용자 입력이나 비밀값을 custom key 또는 로그에 추가하지 않습니다.
 
+### 운영 성능 관측 흐름
+
+```text
+BusArrivalsController
+  → BusArrivalRepository
+  → TagoBusApiClient
+  → AppPerformanceMonitor
+  → Firebase Performance (release only)
+```
+
+TAGO 도착 정보와 경유 노선 요청은 `tago_bus_request` custom trace로 기록합니다. trace에는 `operation`(`arrivals`·`routes`), `outcome`(`success`·`empty`·`http_error`·`timeout`·`invalid_response`·`network_error`·`unexpected_error`), HTTP 상태 코드, 응답 byte 수와 항목 수만 포함합니다. 서비스 키, 전체 URL, 정류장 ID, 사용자 식별자는 전달하지 않습니다.
+
+성능 monitor는 Riverpod provider로 주입하고 테스트에서는 fake trace로 대체합니다. 관측 SDK의 시작·기록·종료 실패는 원래 TAGO 요청 결과와 분리하며 로컬 디버깅 로그만 남깁니다. debug와 profile에서는 네이티브 및 Dart 수집을 비활성화하고 no-op monitor를 사용합니다.
+
 ### 반응형 진입 화면
 
 `InitialScreen`과 `HomeScreen`은 `LayoutBuilder`에서 사용 가능한 화면 제약을 읽어 로고와 간격의 상·하한을 정합니다. 콘텐츠에는 최대 너비를 적용해 태블릿과 가로 화면에서 과도하게 늘어나지 않게 하고, 세로 공간이 부족하면 `SingleChildScrollView`로 모든 동작에 접근할 수 있습니다. 기존 로그인·회원가입·프로필·버스·편의시설·학교지도 이동 흐름과 색상, 로고 자산은 유지했습니다.
@@ -235,7 +250,7 @@ Android 앱은 application ID `com.kominsuk1064.kkuottae`로 등록해야 합니
 
 두 파일은 `.gitignore`에 포함되어 있으므로 저장소에 커밋하지 않습니다. Android debug APK는 CI의 컴파일 검증을 위해 설정 파일 없이도 빌드되지만, 이 상태에서는 Firebase 기능을 실행할 수 없습니다. non-debug Android 빌드에는 `google-services.json`이 필요합니다.
 
-Crashlytics 원격 수집은 release 빌드에서만 활성화됩니다. Android release는 프로세스 시작 시점부터 수집하고, iOS release는 Flutter 초기화에서 활성화합니다. Android와 iOS의 debug·profile은 네이티브 설정과 Flutter 초기화에서 수집을 비활성화합니다. 실제 Firebase Console 수신 여부는 운영 Firebase 설정과 서명을 주입한 release 빌드에서 확인해야 합니다. 앱에는 검증 목적의 강제 crash 버튼을 추가하지 않았습니다.
+Crashlytics와 Performance 원격 수집은 release 빌드에서만 활성화됩니다. Android release는 프로세스 시작 시점부터 수집하고, iOS release는 Flutter 초기화에서 활성화합니다. Android와 iOS의 debug·profile은 네이티브 설정과 Flutter 초기화에서 수집을 비활성화합니다. 실제 Firebase Console 수신 여부는 운영 Firebase 설정과 서명을 주입한 release 빌드에서 확인해야 합니다. 앱에는 검증 목적의 강제 crash 버튼을 추가하지 않았습니다.
 
 ### 3. TAGO API
 
@@ -322,7 +337,7 @@ flutter test
 flutter build apk --debug
 ```
 
-버스·즐겨찾기·인증·프로필·피드백·오류 관측 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore, Crashlytics에 연결하지 않도록 HTTP client, Repository, storage, reporter를 fake 또는 주입 가능한 구현으로 대체합니다.
+버스·즐겨찾기·인증·프로필·피드백·운영 관측 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore, Crashlytics, Performance에 연결하지 않도록 HTTP client, Repository, storage, reporter, trace를 fake 또는 주입 가능한 구현으로 대체합니다.
 
 - TAGO List/Map/null/빈 응답 및 XML 오류 파싱
 - 네트워크 성공, 빈 응답, HTTP 오류, timeout
@@ -345,6 +360,8 @@ flutter build apk --debug
 - 편의시설 1·2·3열 전환, 긴 상호명·주소, 목록 스크롤과 11개 카테고리 이동 경로
 - Flutter framework·비동기 fatal 오류 전달과 reporter 실패 격리
 - 버스 조회 및 즐겨찾기 복원·저장 실패의 non-fatal 오류 보고
+- TAGO 성공·빈 응답·HTTP 오류·timeout·파싱 오류 trace와 관측 실패 격리
+- 성능 trace의 서비스 키·정류장 ID 비수집
 
 ## CI
 
@@ -367,6 +384,6 @@ flutter build apk --debug
 - WebView 지도는 오류·타임아웃·재시도 상태를 제공하지만 콘텐츠 가용성은 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
 - PR CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
 - Android 수동 release workflow는 구성했지만 Repository Secrets를 사용한 실제 서명 AAB 실행은 운영 자격 증명 등록 후 확인해야 하며, Play Store 배포 자동화는 아직 없습니다.
-- Crashlytics 수신은 운영 설정을 주입한 Android release에서 확인해야 하며 성능 추적과 iOS dSYM 업로드 자동화는 아직 없습니다.
+- Crashlytics와 Performance 수신은 운영 설정을 주입한 release 빌드에서 확인해야 하며 iOS dSYM 업로드 자동화는 아직 없습니다.
 
 이 항목들은 완료된 기능처럼 포장하지 않고 후속 이슈에서 작은 단위로 개선합니다.

@@ -1,3 +1,4 @@
+import '../../../core/observability/app_performance_monitor.dart';
 import '../domain/bus_arrival.dart';
 import '../domain/bus_arrival_repository.dart';
 import '../domain/bus_route_summary.dart';
@@ -15,9 +16,11 @@ class TagoBusArrivalRepository implements BusArrivalRepository {
   factory TagoBusArrivalRepository.live({
     required String serviceKey,
     required String cityCode,
+    AppPerformanceMonitor performanceMonitor =
+        const NoOpAppPerformanceMonitor(),
   }) {
     return TagoBusArrivalRepository(
-      apiClient: TagoBusApiClient.live(),
+      apiClient: TagoBusApiClient.live(performanceMonitor: performanceMonitor),
       serviceKey: serviceKey,
       cityCode: cityCode,
     );
