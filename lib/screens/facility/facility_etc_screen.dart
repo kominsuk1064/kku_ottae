@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/facility_place_list.dart';
+
 class FacilityEtcScreen extends StatefulWidget {
   final Set<String> favorites;
   final void Function(String) toggleFavorite;
@@ -42,84 +44,26 @@ class _FacilityEtcScreenState extends State<FacilityEtcScreen> {
         backgroundColor: const Color(0xFF00552E),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: groupedFacilities.entries.map((entry) {
+      body: FacilityPlaceList(
+        sections: groupedFacilities.entries.map((entry) {
           final category = entry.key;
           final places = entry.value;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                category,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF00552E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...places.map((place) {
-                final itemKey =
-                    'restaurant-${place['name']}|편의점/마트|${place['location']}';
-                final isFavorited = widget.favorites.any(
-                  (f) => f.startsWith('restaurant-${place['name']}|'),
-                );
+          return FacilitySection(
+            title: category,
+            children: places.map((place) {
+              final itemKey =
+                  'restaurant-${place['name']}|편의점/마트|${place['location']}';
+              final isFavorited = widget.favorites.any(
+                (f) => f.startsWith('restaurant-${place['name']}|'),
+              );
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              place['name']!,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                isFavorited ? Icons.star : Icons.star_border,
-                                color: Colors.orange,
-                              ),
-                              onPressed: () {
-                                widget.toggleFavorite(itemKey);
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              place['location']!,
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 24),
-            ],
+              return FacilityPlaceCard(
+                name: place['name']!,
+                location: place['location']!,
+                isFavorited: isFavorited,
+                onFavoriteToggle: () => widget.toggleFavorite(itemKey),
+              );
+            }).toList(),
           );
         }).toList(),
       ),
