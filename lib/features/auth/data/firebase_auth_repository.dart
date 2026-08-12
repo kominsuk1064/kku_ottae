@@ -12,6 +12,12 @@ final class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuth _firebaseAuth;
 
   @override
+  AuthUser? get currentUser {
+    final user = _firebaseAuth.currentUser;
+    return user == null ? null : _mapFirebaseUser(user);
+  }
+
+  @override
   Future<AuthUser> signIn({
     required String email,
     required String password,
@@ -139,6 +145,10 @@ final class FirebaseAuthRepository implements AuthRepository {
         debugMessage: 'Firebase returned a credential without a user.',
       );
     }
+    return _mapFirebaseUser(user);
+  }
+
+  AuthUser _mapFirebaseUser(User user) {
     return AuthUser(
       id: user.uid,
       email: user.email,
