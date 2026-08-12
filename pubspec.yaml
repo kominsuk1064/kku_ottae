@@ -34,7 +34,6 @@ dependencies:
   webview_flutter: ^4.2.2
   fluttertoast: ^8.2.2
   http: ^1.2.2
-  flutter_inappwebview: ^6.0.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -64,7 +63,6 @@ flutter:
   assets:
     - assets/konkuk_logo.png
     - assets/main_logo.png
-    - assets/html/kakaoMap.html
     - assets/logo_vertical.png
     - assets/logo_horizontal.png
   # The following line ensures that the Material Icons font is

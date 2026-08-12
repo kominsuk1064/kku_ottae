@@ -4,7 +4,7 @@
 
 건국대학교 글로컬캠퍼스 학생이 버스 도착 정보, 주변 편의시설, 교내 지도를 한 앱에서 확인할 수 있도록 만든 Flutter 앱입니다.
 
-이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인·회원가입·계정 세션·프로필 조회·피드백 제출 흐름에도 같은 경계를 확장했습니다.
+이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인·회원가입·계정 세션·프로필 조회·피드백 제출·캠퍼스 지도 흐름에도 같은 경계를 확장했습니다.
 
 ## 해결하려는 문제
 
@@ -21,7 +21,7 @@
 | 영역 | 기술 | 용도 |
 | --- | --- | --- |
 | UI | Flutter | Android/iOS 앱 UI |
-| 상태·의존성 | flutter_riverpod | 버스·즐겨찾기·인증·프로필·피드백 상태와 의존성 관리 |
+| 상태·의존성 | flutter_riverpod | 버스·즐겨찾기·인증·프로필·피드백·지도 상태와 의존성 관리 |
 | 네트워크 | http | TAGO 버스 API 호출 |
 | 로컬 저장소 | SharedPreferences | 즐겨찾기 영구 저장 |
 | 백엔드 | Firebase Authentication, Cloud Firestore | 인증, 사용자 정보, 피드백 |
@@ -41,6 +41,7 @@
 | SharedPreferences 접근과 UI 상태 변경이 결합됨 | local storage, Repository, controller로 분리 |
 | 마이페이지에서 인증 사용자와 Firestore 문서를 직접 조회함 | Auth·Profile Repository와 프로필 controller로 분리 |
 | 피드백 화면에서 사용자 확인과 Firestore 저장을 직접 처리함 | Auth·Feedback Repository와 제출 controller로 분리 |
+| WebView 오류를 로그만 남기고 빈 화면으로 유지함 | 지도 controller, WebView 어댑터, loading·error·retry 상태로 분리 |
 | 외부 서비스 없이는 검증하기 어려움 | HTTP, Repository, 저장소를 fake로 교체 가능한 경계 구성 |
 
 UI를 전면 재설계하지 않았으며 기존 화면과 즐겨찾기 저장 키(`favorites`)를 유지했습니다.
@@ -58,6 +59,9 @@ lib/
 │  │  ├─ domain/       # 버스 모델과 Repository 계약
 │  │  ├─ data/         # TAGO API client, parser, Repository 구현
 │  │  └─ application/  # Riverpod provider, controller, 불변 UI 상태
+│  ├─ campus_map/
+│  │  ├─ application/  # WebView 로드·진행률·타임아웃·오류 상태 관리
+│  │  └─ presentation/ # 플랫폼 WebView 어댑터와 상태별 화면
 │  ├─ feedback/
 │  │  ├─ domain/       # 피드백 모델, 실패 유형, Repository 계약
 │  │  ├─ data/         # Firestore 피드백 저장 구현과 오류 매핑
@@ -74,7 +78,7 @@ lib/
 └─ screens/            # 기존 화면 및 vertical slice의 UI 연결 지점
 ```
 
-현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·인증 세션·프로필·피드백 로직에 feature-first 경계를 도입했고, 편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
+현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·인증 세션·프로필·피드백·캠퍼스 지도 로직에 feature-first 경계를 도입했고, 편의시설 화면은 기존 screen 중심 구조를 유지합니다.
 
 ### 버스 데이터 흐름
 
@@ -156,6 +160,18 @@ FeedbackScreen
 
 피드백 화면은 Firebase SDK를 직접 호출하지 않습니다. 별점과 입력 검증, submitting, success, failure 상태를 하나의 불변 흐름으로 관리하며 진행 중인 중복 제출을 차단합니다. 기존 `feedbacks` 컬렉션과 `userId`, `rating`, `comment`, `createdAt` 필드를 유지하고, 실패 상세는 디버깅 로그와 사용자 메시지로 분리합니다.
 
+### 캠퍼스 지도 데이터 흐름
+
+```text
+CampusMapScreen
+  → CampusMapController (Riverpod, autoDispose)
+  → CampusMapBrowser
+  → webview_flutter
+  → 건국대학교 공식 캠퍼스 지도
+```
+
+화면은 WebView controller를 직접 다루지 않고 플랫폼 어댑터를 통해 로드와 새로고침만 요청합니다. 로딩 진행률, 성공, 주 프레임 네트워크·HTTP 오류, 20초 타임아웃과 재시도를 불변 상태로 관리하며, 이미지 같은 하위 리소스 하나의 실패가 전체 지도 오류 화면으로 바뀌지 않도록 구분합니다. provider가 해제되면 로드 타이머를 취소하고, 상세 WebView 오류는 디버깅 로그에만 남깁니다. 앱에서 호출하는 지도와 TAGO 주소는 HTTPS를 사용하며 Android manifest의 전역 cleartext 허용은 제거했습니다.
+
 ## 개발 환경
 
 - Flutter `3.35.4` (CI 기준)
@@ -232,6 +248,8 @@ flutter build apk --debug
 - 프로필 loading/empty/success/error/retry 상태와 작은 화면 렌더링
 - 피드백 입력 경계, 별점, 로그인 상태, 중복 제출과 Firestore 오류 매핑
 - 피드백 submitting/error/retry/success 상태와 작은 화면 렌더링
+- 지도 로딩 진행률, 주 프레임·하위 리소스 네트워크·HTTP 오류 구분, timeout과 중복 새로고침
+- 지도 loading/error/retry/success 상태와 작은 화면 렌더링
 
 ## CI
 
@@ -247,9 +265,9 @@ flutter build apk --debug
 
 ## 현재 제약과 다음 과제
 
-- 시외버스, 편의시설, 지도 화면은 기존 screen 중심 구조와 고정 데이터를 유지합니다.
+- 시외버스와 편의시설 화면은 기존 screen 중심 구조와 고정 데이터를 유지합니다.
 - 일부 기존 화면에는 작은 기기에서 추가 검증이 필요한 고정 크기 UI가 남아 있습니다.
-- WebView 지도는 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
+- WebView 지도는 오류·타임아웃·재시도 상태를 제공하지만 콘텐츠 가용성은 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
 - 현재 CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
 - Android release signing은 운영 키로 구성되지 않았고 스토어 배포 자동화도 구현하지 않았습니다.
 - 리팩터링 영역은 로컬 디버깅 로그를 남기지만 원격 crash reporting과 성능 관측은 아직 없습니다.
