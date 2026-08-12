@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kku_ottae/screens/facility/campus_map_web_screen.dart';
+import 'package:kku_ottae/features/campus_map/presentation/campus_map_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -61,9 +61,7 @@ class HomeScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CampusMapWebScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CampusMapScreen()),
                   );
                 },
               ),
