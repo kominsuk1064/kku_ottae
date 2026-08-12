@@ -9,6 +9,7 @@ enum AuthFailureReason {
   invalidCredential,
   tooManyRequests,
   networkUnavailable,
+  requiresRecentLogin,
   noCurrentUser,
   unknown,
 }

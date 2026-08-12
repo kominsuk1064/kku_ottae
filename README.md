@@ -4,7 +4,7 @@
 
 건국대학교 글로컬캠퍼스 학생이 버스 도착 정보, 주변 편의시설, 교내 지도를 한 앱에서 확인할 수 있도록 만든 Flutter 앱입니다.
 
-이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인과 회원가입 흐름에도 같은 경계를 확장했습니다.
+이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인·회원가입·계정 세션 흐름에도 같은 경계를 확장했습니다.
 
 ## 해결하려는 문제
 
@@ -51,7 +51,7 @@ lib/
 │  ├─ auth/
 │  │  ├─ domain/       # 인증 모델, 실패 유형, Repository 계약
 │  │  ├─ data/         # Firebase Auth 구현과 오류 매핑
-│  │  └─ application/  # 로그인·회원가입·비밀번호 재설정 상태 관리
+│  │  └─ application/  # 로그인·회원가입·비밀번호 변경·세션 상태 관리
 │  ├─ bus/
 │  │  ├─ domain/       # 버스 모델과 Repository 계약
 │  │  ├─ data/         # TAGO API client, parser, Repository 구현
@@ -68,7 +68,7 @@ lib/
 └─ screens/            # 기존 화면 및 vertical slice의 UI 연결 지점
 ```
 
-현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·로그인·회원가입과 프로필 저장 로직에 feature-first 경계를 도입했고, 마이페이지 프로필 조회·비밀번호 변경·편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
+현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·인증 세션과 프로필 저장 로직에 feature-first 경계를 도입했고, 마이페이지 프로필 조회·피드백 저장·편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
 
 ### 버스 데이터 흐름
 
@@ -116,6 +116,17 @@ JoinScreen
 ```
 
 계정 생성, 인증 메일 전송, 인증 확인, 프로필 저장을 단계별 불변 상태로 관리합니다. 계정이 생성된 뒤 메일 전송이나 프로필 저장이 실패하면 계정을 다시 만들지 않고 실패한 단계만 재시도합니다. 회원가입 화면은 Firebase Authentication과 Firestore SDK를 직접 호출하지 않습니다.
+
+### 계정 세션 데이터 흐름
+
+```text
+ChangePasswordScreen ─→ ChangePasswordController ─┐
+                                                  ├→ AuthRepository
+MyPageScreen ─→ SessionSignOutBuilder             │  → FirebaseAuthRepository
+             └→ AuthSessionController ────────────┘  → Firebase Authentication
+```
+
+비밀번호 변경은 현재 비밀번호 재인증과 새 비밀번호 적용을 하나의 Repository 작업으로 처리합니다. Firebase 내부 오류는 사용자 메시지와 분리하며 진행 중인 중복 요청을 차단합니다. 로그아웃은 Firebase 세션 종료에 성공한 뒤에만 초기 화면으로 이동하고, 실패하면 현재 화면을 유지한 채 다시 시도할 수 있습니다.
 
 ## 개발 환경
 
@@ -176,7 +187,7 @@ flutter test
 flutter build apk --debug
 ```
 
-버스·즐겨찾기·인증 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore에 연결하지 않도록 HTTP client, Repository, storage를 fake 또는 주입 가능한 구현으로 대체합니다. 마이페이지 프로필 조회와 비밀번호 변경 흐름은 아직 자동화 테스트 범위에 포함되지 않습니다.
+버스·즐겨찾기·인증 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore에 연결하지 않도록 HTTP client, Repository, storage를 fake 또는 주입 가능한 구현으로 대체합니다. 마이페이지 프로필 조회와 피드백 저장 흐름은 아직 자동화 테스트 범위에 포함되지 않습니다.
 
 - TAGO List/Map/null/빈 응답 및 XML 오류 파싱
 - 네트워크 성공, 빈 응답, HTTP 오류, timeout
@@ -187,6 +198,8 @@ flutter build apk --debug
 - 로그인·비밀번호 재설정 loading/error/success 및 작은 화면 렌더링
 - 회원가입 입력 검증, 이메일 인증, 중복 요청 방지와 단계별 재시도
 - Firestore 프로필 오류 매핑, 저장 실패 복구와 회원가입 화면 상태
+- 비밀번호 재인증·변경의 검증, 오류 변환, loading/success 상태
+- 실제 로그아웃, 중복 요청 방지, 실패 후 재시도와 화면 이동
 
 ## CI
 
@@ -202,7 +215,7 @@ flutter build apk --debug
 
 ## 현재 제약과 다음 과제
 
-- 비밀번호 변경·마이페이지 프로필 조회·피드백 저장은 아직 Firebase와 화면에 직접 결합되어 있으며 자동화 테스트가 없습니다.
+- 마이페이지 프로필 조회·피드백 저장은 아직 Firebase와 화면에 직접 결합되어 있으며 자동화 테스트가 없습니다.
 - 시외버스, 편의시설, 지도 화면은 기존 screen 중심 구조와 고정 데이터를 유지합니다.
 - 일부 기존 화면에는 작은 기기에서 추가 검증이 필요한 고정 크기 UI가 남아 있습니다.
 - WebView 지도는 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.

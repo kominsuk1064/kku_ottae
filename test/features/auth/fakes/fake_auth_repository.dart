@@ -8,6 +8,9 @@ typedef FakeCreateUserHandler =
     Future<AuthUser> Function(String email, String password);
 typedef FakeEmailVerificationHandler = Future<void> Function();
 typedef FakeReloadCurrentUserHandler = Future<AuthUser> Function();
+typedef FakeChangePasswordHandler =
+    Future<void> Function(String currentPassword, String newPassword);
+typedef FakeSignOutHandler = Future<void> Function();
 
 final class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository({
@@ -16,25 +19,34 @@ final class FakeAuthRepository implements AuthRepository {
     FakeCreateUserHandler? createUser,
     FakeEmailVerificationHandler? sendEmailVerification,
     FakeReloadCurrentUserHandler? reloadCurrentUser,
+    FakeChangePasswordHandler? changePassword,
+    FakeSignOutHandler? signOut,
   }) : _signIn = signIn ?? _unexpectedSignIn,
        _sendPasswordResetEmail =
            sendPasswordResetEmail ?? _sendPasswordResetSuccessfully,
        _createUser = createUser ?? _unexpectedCreateUser,
        _sendEmailVerification =
            sendEmailVerification ?? _unexpectedEmailVerification,
-       _reloadCurrentUser = reloadCurrentUser ?? _unexpectedReloadCurrentUser;
+       _reloadCurrentUser = reloadCurrentUser ?? _unexpectedReloadCurrentUser,
+       _changePassword = changePassword ?? _unexpectedChangePassword,
+       _signOut = signOut ?? _unexpectedSignOut;
 
   final FakeSignInHandler _signIn;
   final FakePasswordResetHandler _sendPasswordResetEmail;
   final FakeCreateUserHandler _createUser;
   final FakeEmailVerificationHandler _sendEmailVerification;
   final FakeReloadCurrentUserHandler _reloadCurrentUser;
+  final FakeChangePasswordHandler _changePassword;
+  final FakeSignOutHandler _signOut;
 
   final List<({String email, String password})> signInRequests = [];
   final List<String> passwordResetRequests = [];
   final List<({String email, String password})> createUserRequests = [];
   int emailVerificationRequestCount = 0;
   int reloadCurrentUserRequestCount = 0;
+  final List<({String currentPassword, String newPassword})>
+  changePasswordRequests = [];
+  int signOutRequestCount = 0;
 
   @override
   Future<AuthUser> signIn({required String email, required String password}) {
@@ -69,6 +81,24 @@ final class FakeAuthRepository implements AuthRepository {
     return _reloadCurrentUser();
   }
 
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    changePasswordRequests.add((
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    ));
+    return _changePassword(currentPassword, newPassword);
+  }
+
+  @override
+  Future<void> signOut() {
+    signOutRequestCount++;
+    return _signOut();
+  }
+
   static Future<AuthUser> _unexpectedSignIn(String email, String password) {
     throw StateError('Unexpected sign-in request for $email.');
   }
@@ -85,5 +115,16 @@ final class FakeAuthRepository implements AuthRepository {
 
   static Future<AuthUser> _unexpectedReloadCurrentUser() {
     throw StateError('Unexpected current-user reload request.');
+  }
+
+  static Future<void> _unexpectedChangePassword(
+    String currentPassword,
+    String newPassword,
+  ) {
+    throw StateError('Unexpected change-password request.');
+  }
+
+  static Future<void> _unexpectedSignOut() {
+    throw StateError('Unexpected sign-out request.');
   }
 }
