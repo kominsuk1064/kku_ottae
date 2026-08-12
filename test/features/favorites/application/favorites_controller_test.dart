@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kku_ottae/core/observability/app_error_reporter.dart';
 import 'package:kku_ottae/features/favorites/application/favorites_controller.dart';
 import 'package:kku_ottae/features/favorites/application/favorites_providers.dart';
 import 'package:kku_ottae/features/favorites/application/favorites_state.dart';
 import 'package:kku_ottae/features/favorites/domain/favorite_repository.dart';
+
+import '../../../support/fake_app_error_reporter.dart';
 
 void main() {
   group('FavoritesController', () {
@@ -28,6 +31,7 @@ void main() {
     });
 
     test('복원 실패 상태에서 다시 시도하면 정상 상태로 복구한다', () async {
+      final errorReporter = FakeAppErrorReporter();
       var shouldFail = true;
       final repository = _FakeFavoriteRepository(
         loadFavorites: () async {
@@ -38,7 +42,7 @@ void main() {
           return {'busroute:route-1'};
         },
       );
-      final harness = _createHarness(repository);
+      final harness = _createHarness(repository, errorReporter: errorReporter);
       addTearDown(harness.dispose);
 
       await _settle(harness.container);
@@ -48,6 +52,9 @@ void main() {
         harness.readState().errorMessage,
         FavoritesController.loadErrorMessage,
       );
+      expect(errorReporter.reports, hasLength(1));
+      expect(errorReporter.reports.single.reason, 'Favorites restore failed');
+      expect(errorReporter.reports.single.fatal, isFalse);
 
       await harness.readController().retry();
 
@@ -149,6 +156,7 @@ void main() {
     });
 
     test('저장 실패 시 선택을 유지하고 다시 시도로 저장한다', () async {
+      final errorReporter = FakeAppErrorReporter();
       var shouldFail = true;
       final repository = _FakeFavoriteRepository(
         saveFavorites: (_) async {
@@ -158,7 +166,7 @@ void main() {
           }
         },
       );
-      final harness = _createHarness(repository);
+      final harness = _createHarness(repository, errorReporter: errorReporter);
       addTearDown(harness.dispose);
       await _settle(harness.container);
 
@@ -170,6 +178,12 @@ void main() {
         harness.readState().errorMessage,
         FavoritesController.saveErrorMessage,
       );
+      expect(errorReporter.reports, hasLength(1));
+      expect(
+        errorReporter.reports.single.reason,
+        'Favorites persistence failed',
+      );
+      expect(errorReporter.reports.single.fatal, isFalse);
 
       await harness.readController().retry();
 
@@ -180,9 +194,16 @@ void main() {
   });
 }
 
-_ControllerHarness _createHarness(_FakeFavoriteRepository repository) {
+_ControllerHarness _createHarness(
+  _FakeFavoriteRepository repository, {
+  FakeAppErrorReporter? errorReporter,
+}) {
+  final reporter = errorReporter ?? FakeAppErrorReporter();
   final container = ProviderContainer(
-    overrides: [favoriteRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      appErrorReporterProvider.overrideWithValue(reporter),
+      favoriteRepositoryProvider.overrideWithValue(repository),
+    ],
   );
   final states = <FavoritesState>[];
   final subscription = container.listen(
