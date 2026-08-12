@@ -13,6 +13,12 @@ val releaseSigningProperties = Properties().apply {
         releaseSigningPropertiesFile.inputStream().use { load(it) }
     }
 }
+val releaseSigningEnvironmentVariables = mapOf(
+    "storeFile" to "ANDROID_RELEASE_STORE_FILE",
+    "storePassword" to "ANDROID_RELEASE_STORE_PASSWORD",
+    "keyAlias" to "ANDROID_RELEASE_KEY_ALIAS",
+    "keyPassword" to "ANDROID_RELEASE_KEY_PASSWORD",
+)
 val requestedAndroidBuildTasks = gradle.startParameter.taskNames.filter { taskName ->
     taskName.contains("assemble", ignoreCase = true) ||
         taskName.contains("bundle", ignoreCase = true)
@@ -29,22 +35,20 @@ val requiredReleaseSigningProperties = listOf(
     "keyAlias",
     "keyPassword",
 )
-val missingReleaseSigningProperties = if (releaseSigningPropertiesFile.isFile) {
-    requiredReleaseSigningProperties.filter { propertyName ->
-        releaseSigningProperties.getProperty(propertyName).isNullOrBlank()
-    }
-} else {
-    requiredReleaseSigningProperties
+val releaseSigningValues = requiredReleaseSigningProperties.associateWith { propertyName ->
+    System.getenv(releaseSigningEnvironmentVariables.getValue(propertyName))
+        ?.takeIf { it.isNotBlank() }
+        ?: releaseSigningProperties.getProperty(propertyName)?.takeIf { it.isNotBlank() }
+}
+val missingReleaseSigningProperties = requiredReleaseSigningProperties.filter { propertyName ->
+    releaseSigningValues[propertyName] == null
 }
 val placeholderReleaseSigningProperties = requiredReleaseSigningProperties.filter { propertyName ->
-    releaseSigningProperties.getProperty(propertyName) == "CHANGE_ME"
+    releaseSigningValues[propertyName] == "CHANGE_ME"
 }
-val releaseStoreFile = releaseSigningProperties.getProperty("storeFile")
-    ?.takeIf { it.isNotBlank() }
-    ?.let { rootProject.file(it) }
+val releaseStoreFile = releaseSigningValues["storeFile"]?.let { rootProject.file(it) }
 val hasReleaseSigningConfig =
-    releaseSigningPropertiesFile.isFile &&
-        missingReleaseSigningProperties.isEmpty() &&
+    missingReleaseSigningProperties.isEmpty() &&
         placeholderReleaseSigningProperties.isEmpty() &&
         releaseStoreFile?.isFile == true
 val androidConfigurationErrors = mutableListOf<String>()
@@ -55,12 +59,11 @@ if (requiresFirebaseConfig && !googleServicesFile.isFile) {
 }
 if (requiresReleaseSigning) {
     when {
-        !releaseSigningPropertiesFile.isFile -> androidConfigurationErrors +=
-            "android/key.properties is required for release signing."
         missingReleaseSigningProperties.isNotEmpty() -> androidConfigurationErrors +=
-            "android/key.properties is missing: ${missingReleaseSigningProperties.joinToString()}."
+            "Release signing is missing: ${missingReleaseSigningProperties.joinToString()}. " +
+            "Configure android/key.properties or ANDROID_RELEASE_* environment variables."
         placeholderReleaseSigningProperties.isNotEmpty() -> androidConfigurationErrors +=
-            "android/key.properties still contains placeholders: " +
+            "Release signing still contains placeholders: " +
             "${placeholderReleaseSigningProperties.joinToString()}."
         releaseStoreFile?.isFile != true -> androidConfigurationErrors +=
             "The release keystore configured by storeFile does not exist."
@@ -106,10 +109,10 @@ android {
     signingConfigs {
         if (hasReleaseSigningConfig) {
             create("release") {
-                keyAlias = releaseSigningProperties.getProperty("keyAlias")
-                keyPassword = releaseSigningProperties.getProperty("keyPassword")
+                keyAlias = releaseSigningValues["keyAlias"]
+                keyPassword = releaseSigningValues["keyPassword"]
                 storeFile = checkNotNull(releaseStoreFile)
-                storePassword = releaseSigningProperties.getProperty("storePassword")
+                storePassword = releaseSigningValues["storePassword"]
             }
         }
     }
