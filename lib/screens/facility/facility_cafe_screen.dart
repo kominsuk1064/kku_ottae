@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/facility_place_list.dart';
+
 class FacilityCafeScreen extends StatefulWidget {
   final Set<String> favorites;
   final void Function(String) toggleFavorite;
@@ -39,86 +41,27 @@ class _FacilityCafeScreenState extends State<FacilityCafeScreen> {
         backgroundColor: const Color(0xFF00552E),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: groupedCafes.entries.map((entry) {
+      body: FacilityPlaceList(
+        sections: groupedCafes.entries.map((entry) {
           final areaName = entry.key;
           final cafes = entry.value;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                areaName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF00552E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...cafes.map((cafe) {
-                final String itemKey =
-                    'restaurant-${cafe['name']}|${cafe['menu']}|${cafe['location']}';
-                final bool isFavorited = widget.favorites.any(
-                  (f) => f.startsWith('restaurant-${cafe['name']}|'),
-                );
+          return FacilitySection(
+            title: areaName,
+            children: cafes.map((cafe) {
+              final String itemKey =
+                  'restaurant-${cafe['name']}|${cafe['menu']}|${cafe['location']}';
+              final bool isFavorited = widget.favorites.any(
+                (f) => f.startsWith('restaurant-${cafe['name']}|'),
+              );
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              cafe['name']!,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                isFavorited ? Icons.star : Icons.star_border,
-                                color: Colors.orange,
-                              ),
-                              onPressed: () {
-                                widget.toggleFavorite(itemKey);
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text('메뉴: ${cafe['menu']}'),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              cafe['location']!,
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 24),
-            ],
+              return FacilityPlaceCard(
+                name: cafe['name']!,
+                menu: cafe['menu'],
+                location: cafe['location']!,
+                isFavorited: isFavorited,
+                onFavoriteToggle: () => widget.toggleFavorite(itemKey),
+              );
+            }).toList(),
           );
         }).toList(),
       ),
