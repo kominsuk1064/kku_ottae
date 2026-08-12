@@ -45,6 +45,7 @@ dependencies:
   flutter_rating_bar: ^4.0.0
   # Keep this aligned with the existing Firebase and Kotlin 2.1 toolchain.
   firebase_crashlytics: 5.0.0
+  firebase_performance: 0.11.0
 
 dev_dependencies:
   flutter_test:
