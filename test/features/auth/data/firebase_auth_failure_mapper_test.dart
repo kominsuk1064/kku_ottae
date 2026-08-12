@@ -7,6 +7,9 @@ void main() {
   group('mapFirebaseAuthFailure', () {
     const cases = <String, AuthFailureReason>{
       'invalid-email': AuthFailureReason.invalidEmail,
+      'email-already-in-use': AuthFailureReason.emailAlreadyInUse,
+      'weak-password': AuthFailureReason.weakPassword,
+      'operation-not-allowed': AuthFailureReason.operationNotAllowed,
       'user-disabled': AuthFailureReason.userDisabled,
       'user-not-found': AuthFailureReason.userNotFound,
       'wrong-password': AuthFailureReason.wrongPassword,

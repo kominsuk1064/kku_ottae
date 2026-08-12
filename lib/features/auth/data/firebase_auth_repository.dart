@@ -47,4 +47,67 @@ final class FirebaseAuthRepository implements AuthRepository {
       Error.throwWithStackTrace(mapFirebaseAuthFailure(error), stackTrace);
     }
   }
+
+  @override
+  Future<AuthUser> createUser({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return _mapUser(credential.user);
+    } on FirebaseAuthException catch (error, stackTrace) {
+      Error.throwWithStackTrace(mapFirebaseAuthFailure(error), stackTrace);
+    }
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        throw const AuthFailure(
+          reason: AuthFailureReason.noCurrentUser,
+          debugMessage: 'Cannot send verification email without a user.',
+        );
+      }
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (error, stackTrace) {
+      Error.throwWithStackTrace(mapFirebaseAuthFailure(error), stackTrace);
+    }
+  }
+
+  @override
+  Future<AuthUser> reloadCurrentUser() async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        throw const AuthFailure(
+          reason: AuthFailureReason.noCurrentUser,
+          debugMessage: 'Cannot reload authentication without a user.',
+        );
+      }
+      await user.reload();
+      return _mapUser(_firebaseAuth.currentUser);
+    } on FirebaseAuthException catch (error, stackTrace) {
+      Error.throwWithStackTrace(mapFirebaseAuthFailure(error), stackTrace);
+    }
+  }
+
+  AuthUser _mapUser(User? user) {
+    if (user == null) {
+      throw const AuthFailure(
+        reason: AuthFailureReason.noCurrentUser,
+        debugMessage: 'Firebase returned a credential without a user.',
+      );
+    }
+    return AuthUser(
+      id: user.uid,
+      email: user.email,
+      isEmailVerified: user.emailVerified,
+    );
+  }
 }
