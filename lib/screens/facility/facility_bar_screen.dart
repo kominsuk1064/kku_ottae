@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/facility_place_list.dart';
+
 class FacilityBarScreen extends StatefulWidget {
   final Set<String> favorites;
   final void Function(String) toggleFavorite;
@@ -51,86 +53,27 @@ class _FacilityBarScreenState extends State<FacilityBarScreen> {
         backgroundColor: const Color(0xFF00552E),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: groupedBars.entries.map((entry) {
+      body: FacilityPlaceList(
+        sections: groupedBars.entries.map((entry) {
           final areaName = entry.key;
           final bars = entry.value;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                areaName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF00552E),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...bars.map((bar) {
-                final String itemKey =
-                    'restaurant-${bar['name']}|${bar['menu']}|${bar['location']}';
-                final bool isFavorited = widget.favorites.any(
-                  (f) => f.startsWith('restaurant-${bar['name']}|'),
-                );
+          return FacilitySection(
+            title: areaName,
+            children: bars.map((bar) {
+              final String itemKey =
+                  'restaurant-${bar['name']}|${bar['menu']}|${bar['location']}';
+              final bool isFavorited = widget.favorites.any(
+                (f) => f.startsWith('restaurant-${bar['name']}|'),
+              );
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              bar['name']!,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                isFavorited ? Icons.star : Icons.star_border,
-                                color: Colors.orange,
-                              ),
-                              onPressed: () {
-                                widget.toggleFavorite(itemKey);
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text('메뉴: ${bar['menu']}'),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              bar['location']!,
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 24),
-            ],
+              return FacilityPlaceCard(
+                name: bar['name']!,
+                menu: bar['menu'],
+                location: bar['location']!,
+                isFavorited: isFavorited,
+                onFavoriteToggle: () => widget.toggleFavorite(itemKey),
+              );
+            }).toList(),
           );
         }).toList(),
       ),
