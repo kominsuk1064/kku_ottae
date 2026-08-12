@@ -168,6 +168,10 @@ final class LoginController extends Notifier<LoginState> {
         AuthFailureReason.userDisabled => '사용이 중지된 계정입니다.',
         AuthFailureReason.tooManyRequests => '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
         AuthFailureReason.networkUnavailable => '네트워크 연결을 확인해주세요.',
+        AuthFailureReason.emailAlreadyInUse ||
+        AuthFailureReason.weakPassword ||
+        AuthFailureReason.operationNotAllowed ||
+        AuthFailureReason.noCurrentUser ||
         AuthFailureReason.wrongPassword ||
         AuthFailureReason.invalidCredential ||
         AuthFailureReason.unknown => '메일 전송 중 오류가 발생했습니다.',
@@ -182,6 +186,10 @@ final class LoginController extends Notifier<LoginState> {
       AuthFailureReason.invalidCredential => '이메일 또는 비밀번호가 올바르지 않습니다.',
       AuthFailureReason.tooManyRequests => '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
       AuthFailureReason.networkUnavailable => '네트워크 연결을 확인해주세요.',
+      AuthFailureReason.emailAlreadyInUse ||
+      AuthFailureReason.weakPassword ||
+      AuthFailureReason.operationNotAllowed ||
+      AuthFailureReason.noCurrentUser ||
       AuthFailureReason.unknown => '로그인 중 오류가 발생했습니다.',
     };
   }
