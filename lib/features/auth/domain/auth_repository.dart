@@ -1,6 +1,8 @@
 import 'auth_user.dart';
 
 abstract interface class AuthRepository {
+  AuthUser? get currentUser;
+
   Future<AuthUser> signIn({required String email, required String password});
 
   Future<void> sendPasswordResetEmail({required String email});

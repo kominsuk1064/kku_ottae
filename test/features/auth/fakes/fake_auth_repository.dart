@@ -14,6 +14,7 @@ typedef FakeSignOutHandler = Future<void> Function();
 
 final class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository({
+    this.currentUser,
     FakeSignInHandler? signIn,
     FakePasswordResetHandler? sendPasswordResetEmail,
     FakeCreateUserHandler? createUser,
@@ -30,6 +31,9 @@ final class FakeAuthRepository implements AuthRepository {
        _reloadCurrentUser = reloadCurrentUser ?? _unexpectedReloadCurrentUser,
        _changePassword = changePassword ?? _unexpectedChangePassword,
        _signOut = signOut ?? _unexpectedSignOut;
+
+  @override
+  final AuthUser? currentUser;
 
   final FakeSignInHandler _signIn;
   final FakePasswordResetHandler _sendPasswordResetEmail;
