@@ -44,6 +44,7 @@
 | WebView 오류를 로그만 남기고 빈 화면으로 유지함 | 지도 controller, WebView 어댑터, loading·error·retry 상태로 분리 |
 | 초기·홈 화면의 큰 고정 여백과 버튼 높이가 작은 화면에서 넘침 | 화면 제약 기반 크기, 최대 너비, 스크롤 가능한 레이아웃 적용 |
 | 편의시설 그리드와 상세 카드가 고정 폭을 가정해 긴 이름·주소가 넘침 | 폭별 1·2·3열 그리드, 콘텐츠 최대 너비, 줄바꿈 가능한 공용 카드 적용 |
+| Android가 예제 식별자와 debug release 서명을 사용함 | 정식 application ID, 외부 키스토어 기반 release 서명과 누락 설정 preflight 적용 |
 | 외부 서비스 없이는 검증하기 어려움 | HTTP, Repository, 저장소를 fake로 교체 가능한 경계 구성 |
 
 UI를 전면 재설계하지 않았으며 기존 화면과 즐겨찾기 저장 키(`favorites`)를 유지했습니다.
@@ -207,6 +208,8 @@ flutter pub get
 
 Firebase Console에서 앱을 등록한 뒤 대상 플랫폼의 설정 파일을 로컬에 배치합니다.
 
+Android 앱은 application ID `com.kominsuk1064.kkuottae`로 등록해야 합니다. 이전 예제 ID로 만든 `google-services.json`은 새 빌드와 호환되지 않습니다.
+
 | 플랫폼 | 파일 위치 |
 | --- | --- |
 | Android | `android/app/google-services.json` |
@@ -228,6 +231,35 @@ flutter run --dart-define=TAGO_KEY=YOUR_TAGO_KEY --dart-define=CITY_CODE=33020
 ```
 
 원문 서비스 키와 URL 인코딩된 키를 모두 받을 수 있습니다. 실제 키는 소스, README, 이슈, PR 본문에 기록하지 않습니다. `--dart-define`은 값을 앱 바이너리에서 완전히 숨기는 보안 저장소가 아니므로 배포 시 키 사용 제한과 교체 정책도 별도로 관리해야 합니다.
+
+### 4. Android release 서명
+
+Android 표시 이름은 `건대어때`, application ID와 namespace는 `com.kominsuk1064.kkuottae`를 사용합니다. release 빌드는 debug 키로 대체되지 않으며 Firebase 설정과 별도의 upload key가 모두 있어야 합니다.
+
+application ID가 달라지면 기존 `com.example.ottae_fixed` 설치본과 별도 앱으로 취급되므로 실제 배포 전에 이 값을 확정해야 합니다. Firebase Android 앱도 같은 ID로 새로 등록합니다.
+
+1. 비밀번호를 명령행에 기록하지 않고 대화형으로 upload key를 생성합니다.
+
+```bash
+keytool -genkeypair -v -keystore android/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+2. `android/key.properties.example`을 `android/key.properties`로 복사하고 실제 값을 입력합니다.
+
+| 이름 | 설명 |
+| --- | --- |
+| `storeFile` | `android` 디렉터리 기준 키스토어 경로 또는 절대 경로 |
+| `storePassword` | 키스토어 비밀번호 |
+| `keyAlias` | upload key 별칭 |
+| `keyPassword` | upload key 비밀번호 |
+
+3. 같은 application ID로 발급한 `android/app/google-services.json`을 배치하고 AAB를 빌드합니다.
+
+```bash
+flutter build appbundle --release --dart-define=TAGO_KEY=YOUR_TAGO_KEY --dart-define=CITY_CODE=33020
+```
+
+`key.properties`, `*.jks`, `*.keystore`, Firebase 설정 파일은 Git에서 제외됩니다. release 설정이 없거나 예시 값이 남아 있으면 Gradle이 누락 항목을 표시하고 빌드를 중단합니다.
 
 ## 검증
 
@@ -281,7 +313,7 @@ flutter build apk --debug
 - 편의시설 화면은 반응형 레이아웃을 적용했지만 장소 데이터의 최신성 검증과 별도 데이터 계층은 아직 없습니다.
 - WebView 지도는 오류·타임아웃·재시도 상태를 제공하지만 콘텐츠 가용성은 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
 - 현재 CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
-- Android release signing은 운영 키로 구성되지 않았고 스토어 배포 자동화도 구현하지 않았습니다.
+- Android release 서명은 로컬 비밀 파일 주입 경계까지만 구성했으며, 서명된 AAB를 만드는 release CI와 Play Store 배포 자동화는 아직 없습니다.
 - 리팩터링 영역은 로컬 디버깅 로그를 남기지만 원격 crash reporting과 성능 관측은 아직 없습니다.
 
 이 항목들은 완료된 기능처럼 포장하지 않고 후속 이슈에서 작은 단위로 개선합니다.

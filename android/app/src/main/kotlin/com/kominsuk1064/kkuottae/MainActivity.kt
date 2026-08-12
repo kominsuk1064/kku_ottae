@@ -1,4 +1,4 @@
-package com.example.ottae_fixed
+package com.kominsuk1064.kkuottae
 
 import io.flutter.embedding.android.FlutterActivity
 
