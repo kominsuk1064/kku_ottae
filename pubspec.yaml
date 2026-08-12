@@ -43,6 +43,8 @@ dependencies:
   cloud_firestore: ^6.0.0
   shared_preferences: ^2.2.2
   flutter_rating_bar: ^4.0.0
+  # Keep this aligned with the existing Firebase and Kotlin 2.1 toolchain.
+  firebase_crashlytics: 5.0.0
 
 dev_dependencies:
   flutter_test:

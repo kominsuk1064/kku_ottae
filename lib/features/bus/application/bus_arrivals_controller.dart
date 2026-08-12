@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/app_error_report.dart';
+import '../../../core/observability/app_error_reporter.dart';
 import '../data/tago_bus_exception.dart';
 import '../domain/bus_arrival_repository.dart';
 import '../domain/bus_route_summary.dart';
@@ -55,6 +56,7 @@ final class BusArrivalsController extends Notifier<BusArrivalsState> {
 
   late final BusArrivalRepository _repository;
   late final BusClock _clock;
+  late final AppErrorReporter _errorReporter;
   Timer? _poller;
   bool _ownsRepository = false;
   bool _requestInFlight = false;
@@ -72,6 +74,7 @@ final class BusArrivalsController extends Notifier<BusArrivalsState> {
           ),
         );
     _clock = ref.read(busClockProvider);
+    _errorReporter = ref.read(appErrorReporterProvider);
 
     ref.onDispose(() {
       _disposed = true;
@@ -126,11 +129,14 @@ final class BusArrivalsController extends Notifier<BusArrivalsState> {
       if (_disposed) {
         return;
       }
-      developer.log(
-        '버스 도착 정보 조회 실패',
-        name: 'kku_ottae.bus',
-        error: error,
-        stackTrace: stackTrace,
+      unawaited(
+        _errorReporter.record(
+          AppErrorReport(
+            error: error,
+            stackTrace: stackTrace,
+            reason: 'Bus arrivals refresh failed',
+          ),
+        ),
       );
       state = BusArrivalsState.error(
         message: _userMessage(error),
@@ -147,11 +153,14 @@ final class BusArrivalsController extends Notifier<BusArrivalsState> {
     try {
       return await _repository.fetchRoutesThroughStop(stopId: request.stopId);
     } catch (error, stackTrace) {
-      developer.log(
-        '정류장 경유 노선 조회 실패',
-        name: 'kku_ottae.bus',
-        error: error,
-        stackTrace: stackTrace,
+      unawaited(
+        _errorReporter.record(
+          AppErrorReport(
+            error: error,
+            stackTrace: stackTrace,
+            reason: 'Bus routes fallback failed',
+          ),
+        ),
       );
       return const [];
     }
