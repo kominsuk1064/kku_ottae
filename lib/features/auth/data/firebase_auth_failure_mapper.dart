@@ -14,6 +14,7 @@ AuthFailure mapFirebaseAuthFailure(FirebaseAuthException exception) {
     'invalid-credential' => AuthFailureReason.invalidCredential,
     'too-many-requests' => AuthFailureReason.tooManyRequests,
     'network-request-failed' => AuthFailureReason.networkUnavailable,
+    'requires-recent-login' => AuthFailureReason.requiresRecentLogin,
     _ => AuthFailureReason.unknown,
   };
 
