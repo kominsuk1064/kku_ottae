@@ -26,7 +26,7 @@
 | 로컬 저장소 | SharedPreferences | 즐겨찾기 영구 저장 |
 | 백엔드 | Firebase Authentication, Cloud Firestore | 인증, 사용자 정보, 피드백 |
 | 지도 | webview_flutter | 공식 캠퍼스 지도 표시 |
-| 자동화 | GitHub Actions | 포맷, 정적 분석, 테스트, debug APK 빌드 |
+| 자동화 | GitHub Actions | 포맷, 정적 분석, 테스트, debug APK와 수동 서명 AAB 빌드 |
 
 ## 리팩터링 범위
 
@@ -261,6 +261,35 @@ flutter build appbundle --release --dart-define=TAGO_KEY=YOUR_TAGO_KEY --dart-de
 
 `key.properties`, `*.jks`, `*.keystore`, Firebase 설정 파일은 Git에서 제외됩니다. release 설정이 없거나 예시 값이 남아 있으면 Gradle이 누락 항목을 표시하고 빌드를 중단합니다.
 
+### 5. GitHub Actions release 설정
+
+`.github/workflows/android-release.yml`은 `main` 브랜치에서 수동으로만 실행됩니다. 다음 값을 **Settings → Secrets and variables → Actions → Repository secrets**에 등록합니다.
+
+| Secret | 설명 |
+| --- | --- |
+| `ANDROID_RELEASE_KEYSTORE_BASE64` | upload keystore 파일 전체를 base64로 변환한 값 |
+| `ANDROID_RELEASE_STORE_PASSWORD` | 키스토어 비밀번호 |
+| `ANDROID_RELEASE_KEY_ALIAS` | upload key 별칭 |
+| `ANDROID_RELEASE_KEY_PASSWORD` | upload key 비밀번호 |
+| `FIREBASE_ANDROID_CONFIG_BASE64` | 새 application ID용 `google-services.json` 전체를 base64로 변환한 값 |
+| `TAGO_KEY` | 공공데이터포털 TAGO 서비스 키 |
+
+Windows PowerShell에서는 다음 명령으로 줄바꿈 없는 base64 값을 만들 수 있습니다. 출력값은 파일이나 저장소에 남기지 않고 해당 GitHub Secret에 바로 등록합니다.
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android/upload-keystore.jks"))
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android/app/google-services.json"))
+```
+
+GitHub의 **Actions → Android Release → Run workflow**에서 `main`을 선택하고 version name과 이전 배포보다 큰 build number를 입력합니다. workflow는 포맷, 정적 분석과 전체 테스트를 먼저 통과한 뒤 다음 항목을 검증합니다.
+
+- 필수 Secret 존재 여부와 version 입력 범위
+- Firebase 설정의 package ID `com.kominsuk1064.kkuottae`
+- upload keystore, store password와 key alias
+- Gradle release 서명과 생성된 AAB 서명
+
+성공하면 서명된 AAB와 SHA-256 checksum을 하나의 artifact로 14일간 보관합니다. workflow는 저장소 쓰기 권한이 없고 Play Store 업로드, Git tag 또는 GitHub Release 생성은 수행하지 않습니다. 임시 키스토어와 Firebase 설정은 성공 여부와 관계없이 job 마지막에 삭제합니다.
+
 ## 검증
 
 로컬에서 CI와 같은 순서로 실행합니다.
@@ -307,13 +336,15 @@ flutter build apk --debug
 
 워크플로는 읽기 전용 저장소 권한, Flutter/Pub 및 Gradle 캐시, 같은 브랜치의 이전 실행 취소를 사용합니다. 외부 서비스 자격 증명 없이도 동일한 코드 경계를 검증합니다.
 
+`.github/workflows/android-release.yml`은 일반 CI와 분리된 수동 release 경로입니다. `main`의 코드만 대상으로 같은 품질 검사를 다시 실행하고, Repository Secrets를 임시 파일과 Gradle 환경변수로 주입해 서명 AAB와 checksum artifact를 생성합니다. release 실행은 겹치지 않으며 이전 실행을 자동 취소하지 않습니다.
+
 ## 현재 제약과 다음 과제
 
 - 시외버스와 편의시설 데이터는 기존 screen 중심 구조와 고정 데이터를 유지합니다.
 - 편의시설 화면은 반응형 레이아웃을 적용했지만 장소 데이터의 최신성 검증과 별도 데이터 계층은 아직 없습니다.
 - WebView 지도는 오류·타임아웃·재시도 상태를 제공하지만 콘텐츠 가용성은 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
-- 현재 CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
-- Android release 서명은 로컬 비밀 파일 주입 경계까지만 구성했으며, 서명된 AAB를 만드는 release CI와 Play Store 배포 자동화는 아직 없습니다.
+- PR CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
+- Android 수동 release workflow는 구성했지만 Repository Secrets를 사용한 실제 서명 AAB 실행은 운영 자격 증명 등록 후 확인해야 하며, Play Store 배포 자동화는 아직 없습니다.
 - 리팩터링 영역은 로컬 디버깅 로그를 남기지만 원격 crash reporting과 성능 관측은 아직 없습니다.
 
 이 항목들은 완료된 기능처럼 포장하지 않고 후속 이슈에서 작은 단위로 개선합니다.
