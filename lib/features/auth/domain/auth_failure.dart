@@ -1,11 +1,15 @@
 enum AuthFailureReason {
   invalidEmail,
+  emailAlreadyInUse,
+  weakPassword,
+  operationNotAllowed,
   userDisabled,
   userNotFound,
   wrongPassword,
   invalidCredential,
   tooManyRequests,
   networkUnavailable,
+  noCurrentUser,
   unknown,
 }
 

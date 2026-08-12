@@ -4,7 +4,7 @@
 
 건국대학교 글로컬캠퍼스 학생이 버스 도착 정보, 주변 편의시설, 교내 지도를 한 앱에서 확인할 수 있도록 만든 Flutter 앱입니다.
 
-이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인 흐름에도 같은 경계를 확장했습니다.
+이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인과 회원가입 흐름에도 같은 경계를 확장했습니다.
 
 ## 해결하려는 문제
 
@@ -21,7 +21,7 @@
 | 영역 | 기술 | 용도 |
 | --- | --- | --- |
 | UI | Flutter | Android/iOS 앱 UI |
-| 상태·의존성 | flutter_riverpod | 버스·즐겨찾기·로그인 상태와 의존성 관리 |
+| 상태·의존성 | flutter_riverpod | 버스·즐겨찾기·인증 상태와 의존성 관리 |
 | 네트워크 | http | TAGO 버스 API 호출 |
 | 로컬 저장소 | SharedPreferences | 즐겨찾기 영구 저장 |
 | 백엔드 | Firebase Authentication, Cloud Firestore | 인증, 사용자 정보, 피드백 |
@@ -51,20 +51,24 @@ lib/
 │  ├─ auth/
 │  │  ├─ domain/       # 인증 모델, 실패 유형, Repository 계약
 │  │  ├─ data/         # Firebase Auth 구현과 오류 매핑
-│  │  └─ application/  # 로그인·비밀번호 재설정 상태 관리
+│  │  └─ application/  # 로그인·회원가입·비밀번호 재설정 상태 관리
 │  ├─ bus/
 │  │  ├─ domain/       # 버스 모델과 Repository 계약
 │  │  ├─ data/         # TAGO API client, parser, Repository 구현
 │  │  └─ application/  # Riverpod provider, controller, 불변 UI 상태
-│  └─ favorites/
-│     ├─ domain/       # 즐겨찾기 Repository 계약
-│     ├─ data/         # SharedPreferences 저장소와 Repository 구현
-│     ├─ application/  # 복원·변경·저장·재시도 상태 관리
-│     └─ presentation/ # 기존 화면과 Riverpod 상태 연결
+│  ├─ favorites/
+│  │  ├─ domain/       # 즐겨찾기 Repository 계약
+│  │  ├─ data/         # SharedPreferences 저장소와 Repository 구현
+│  │  ├─ application/  # 복원·변경·저장·재시도 상태 관리
+│  │  └─ presentation/ # 기존 화면과 Riverpod 상태 연결
+│  └─ profile/
+│     ├─ domain/       # 사용자 프로필 모델과 Repository 계약
+│     ├─ data/         # Firestore 프로필 저장 구현과 오류 매핑
+│     └─ application/  # 프로필 저장소 의존성 제공
 └─ screens/            # 기존 화면 및 vertical slice의 UI 연결 지점
 ```
 
-현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기와 로그인 핵심 로직에 feature-first 경계를 도입했고, 회원가입·Firestore 프로필·편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
+현재 구조는 앱 전체에 적용된 완성형 Clean Architecture가 아닙니다. 버스·즐겨찾기·로그인·회원가입과 프로필 저장 로직에 feature-first 경계를 도입했고, 마이페이지 프로필 조회·비밀번호 변경·편의시설·지도 화면은 기존 screen 중심 구조를 유지합니다.
 
 ### 버스 데이터 흐름
 
@@ -101,6 +105,17 @@ LoginScreen
 ```
 
 로그인과 비밀번호 재설정은 하나의 불변 상태 흐름으로 관리합니다. Firebase 오류 코드는 앱의 인증 실패 유형으로 변환하고, 사용자가 보는 메시지와 상세 디버깅 로그를 분리합니다. 로그인 화면은 Firebase SDK를 직접 호출하지 않습니다.
+
+### 회원가입 데이터 흐름
+
+```text
+JoinScreen
+  → SignupController (Riverpod)
+  ├─ AuthRepository → Firebase Authentication
+  └─ UserProfileRepository → Cloud Firestore
+```
+
+계정 생성, 인증 메일 전송, 인증 확인, 프로필 저장을 단계별 불변 상태로 관리합니다. 계정이 생성된 뒤 메일 전송이나 프로필 저장이 실패하면 계정을 다시 만들지 않고 실패한 단계만 재시도합니다. 회원가입 화면은 Firebase Authentication과 Firestore SDK를 직접 호출하지 않습니다.
 
 ## 개발 환경
 
@@ -161,7 +176,7 @@ flutter test
 flutter build apk --debug
 ```
 
-버스·즐겨찾기·로그인 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase에 연결하지 않도록 HTTP client, Repository, storage를 fake 또는 주입 가능한 구현으로 대체합니다. 회원가입과 Firestore 흐름은 아직 자동화 테스트 범위에 포함되지 않습니다.
+버스·즐겨찾기·인증 테스트는 실제 TAGO API, 로컬 기기 저장소, Firebase Authentication, Firestore에 연결하지 않도록 HTTP client, Repository, storage를 fake 또는 주입 가능한 구현으로 대체합니다. 마이페이지 프로필 조회와 비밀번호 변경 흐름은 아직 자동화 테스트 범위에 포함되지 않습니다.
 
 - TAGO List/Map/null/빈 응답 및 XML 오류 파싱
 - 네트워크 성공, 빈 응답, HTTP 오류, timeout
@@ -170,6 +185,8 @@ flutter build apk --debug
 - 버스 상태 화면과 즐겨찾기 연결 위젯
 - Firebase 인증 오류 코드 매핑과 로그인 controller 상태 전환
 - 로그인·비밀번호 재설정 loading/error/success 및 작은 화면 렌더링
+- 회원가입 입력 검증, 이메일 인증, 중복 요청 방지와 단계별 재시도
+- Firestore 프로필 오류 매핑, 저장 실패 복구와 회원가입 화면 상태
 
 ## CI
 
@@ -185,7 +202,7 @@ flutter build apk --debug
 
 ## 현재 제약과 다음 과제
 
-- 회원가입·비밀번호 변경·Firestore 프로필 접근은 아직 화면에 직접 결합되어 있으며 자동화 테스트가 없습니다.
+- 비밀번호 변경·마이페이지 프로필 조회·피드백 저장은 아직 Firebase와 화면에 직접 결합되어 있으며 자동화 테스트가 없습니다.
 - 시외버스, 편의시설, 지도 화면은 기존 screen 중심 구조와 고정 데이터를 유지합니다.
 - 일부 기존 화면에는 작은 기기에서 추가 검증이 필요한 고정 크기 UI가 남아 있습니다.
 - WebView 지도는 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
