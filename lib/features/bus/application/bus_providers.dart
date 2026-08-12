@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/app_performance_monitor.dart';
 import '../data/tago_bus_arrival_repository.dart';
 import '../domain/bus_arrival_repository.dart';
 
@@ -23,9 +24,11 @@ typedef BusPeriodicTimerFactory =
 
 final busArrivalRepositoryFactoryProvider =
     Provider<BusArrivalRepositoryFactory>((ref) {
+      final performanceMonitor = ref.watch(appPerformanceMonitorProvider);
       return (configuration) => TagoBusArrivalRepository.live(
         serviceKey: configuration.serviceKey,
         cityCode: configuration.cityCode,
+        performanceMonitor: performanceMonitor,
       );
     });
 
