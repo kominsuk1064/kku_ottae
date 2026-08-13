@@ -1,3 +1,0 @@
-"assets/html/kakaoMap.html" 
-"my-server/.env" 
-"android/app/google-services.json" 

@@ -331,7 +331,8 @@ GitHub의 **Actions → Android Release → Run workflow**에서 `main`을 선�
 
 ```bash
 flutter pub get
-dart format --output=none --set-exit-if-changed lib test
+dart run tool/check_repository_hygiene.dart
+dart format --output=none --set-exit-if-changed lib test tool
 flutter analyze
 flutter test
 flutter build apk --debug
@@ -368,12 +369,13 @@ flutter build apk --debug
 `.github/workflows/flutter-ci.yml`은 pull request, `main` push, 수동 실행에서 다음 검사를 수행합니다.
 
 1. `flutter pub get`
-2. `dart format --output=none --set-exit-if-changed lib test`
-3. `flutter analyze`
-4. `flutter test`
-5. `flutter build apk --debug`
+2. `dart run tool/check_repository_hygiene.dart`
+3. `dart format --output=none --set-exit-if-changed lib test tool`
+4. `flutter analyze`
+5. `flutter test`
+6. `flutter build apk --debug`
 
-워크플로는 읽기 전용 저장소 권한, Flutter/Pub 및 Gradle 캐시, 같은 브랜치의 이전 실행 취소를 사용합니다. 외부 서비스 자격 증명 없이도 동일한 코드 경계를 검증합니다.
+저장소 위생 검사는 로컬 편집기 설정, `node_modules`, 환경·Firebase·서명 파일과 실제값 형태의 TAGO 키가 Git에 추적되지 않는지 확인합니다. 워크플로는 읽기 전용 저장소 권한, Flutter/Pub 및 Gradle 캐시, 같은 브랜치의 이전 실행 취소를 사용합니다. 외부 서비스 자격 증명 없이도 동일한 코드 경계를 검증합니다.
 
 `.github/workflows/android-release.yml`은 일반 CI와 분리된 수동 release 경로입니다. `main`의 코드만 대상으로 같은 품질 검사를 다시 실행하고, Repository Secrets를 임시 파일과 Gradle 환경변수로 주입해 서명 AAB와 checksum artifact를 생성합니다. release 실행은 겹치지 않으며 이전 실행을 자동 취소하지 않습니다.
 
