@@ -46,6 +46,7 @@
 | 초기·홈 화면의 큰 고정 여백과 버튼 높이가 작은 화면에서 넘침 | 화면 제약 기반 크기, 최대 너비, 스크롤 가능한 레이아웃 적용 |
 | 편의시설 그리드와 상세 카드가 고정 폭을 가정해 긴 이름·주소가 넘침 | 폭별 1·2·3열 그리드, 콘텐츠 최대 너비, 줄바꿈 가능한 공용 카드 적용 |
 | Android가 예제 식별자와 debug release 서명을 사용함 | 정식 application ID, 외부 키스토어 기반 release 서명과 누락 설정 preflight 적용 |
+| iOS가 예제 이름과 Bundle ID를 사용함 | 표시 이름과 앱·테스트 타깃의 모든 빌드 구성 식별자를 정식 값으로 통일 |
 | 처리된 오류가 로컬 로그에만 남아 운영 장애를 확인하기 어려움 | 주입 가능한 오류 reporter, 전역 handler와 release 전용 Crashlytics 적용 |
 | TAGO 요청의 지연·결과 분포를 운영 환경에서 확인할 수 없음 | 비밀값을 제외한 custom trace와 release 전용 Firebase Performance 적용 |
 | 외부 서비스 없이는 검증하기 어려움 | HTTP, Repository, 저장소를 fake로 교체 가능한 경계 구성 |
@@ -241,7 +242,7 @@ flutter pub get
 
 Firebase Console에서 앱을 등록한 뒤 대상 플랫폼의 설정 파일을 로컬에 배치합니다.
 
-Android 앱은 application ID `com.kominsuk1064.kkuottae`로 등록해야 합니다. 이전 예제 ID로 만든 `google-services.json`은 새 빌드와 호환되지 않습니다.
+Android 앱은 application ID `com.kominsuk1064.kkuottae`, iOS 앱은 Bundle ID `com.kominsuk1064.kkuottae`로 등록해야 합니다. 이전 예제 ID로 만든 Firebase 설정 파일은 새 빌드와 호환되지 않습니다.
 
 | 플랫폼 | 파일 위치 |
 | --- | --- |
@@ -267,7 +268,15 @@ flutter run --dart-define=TAGO_KEY=YOUR_TAGO_KEY --dart-define=CITY_CODE=33020
 
 원문 서비스 키와 URL 인코딩된 키를 모두 받을 수 있습니다. 실제 키는 소스, README, 이슈, PR 본문에 기록하지 않습니다. `--dart-define`은 값을 앱 바이너리에서 완전히 숨기는 보안 저장소가 아니므로 배포 시 키 사용 제한과 교체 정책도 별도로 관리해야 합니다.
 
-### 4. Android release 서명
+### 4. iOS 앱 식별자
+
+iOS 표시 이름은 `건대어때`, 앱 Bundle ID는 `com.kominsuk1064.kkuottae`를 사용합니다. `RunnerTests` 타깃은 `com.kominsuk1064.kkuottae.RunnerTests`를 사용하며 Debug, Profile, Release 구성을 동일하게 유지합니다.
+
+Bundle ID가 달라지면 기존 `com.example.ottaeFixed` 설치본과 별도 앱으로 취급됩니다. Firebase iOS 앱도 정식 Bundle ID로 등록하고 새로 발급한 `GoogleService-Info.plist`를 `ios/Runner/GoogleService-Info.plist`에 배치해야 합니다. 이 설정 파일은 저장소에 커밋하지 않습니다.
+
+실제 서명과 배포 전에는 Apple Developer 계정에서 정식 Bundle ID와 App ID를 등록하고 Xcode의 Signing & Capabilities에서 개발 팀과 프로비저닝 설정을 연결해야 합니다. 저장소에는 개인 개발 팀 ID나 프로비저닝 프로파일을 고정하지 않습니다.
+
+### 5. Android release 서명
 
 Android 표시 이름은 `건대어때`, application ID와 namespace는 `com.kominsuk1064.kkuottae`를 사용합니다. release 빌드는 debug 키로 대체되지 않으며 Firebase 설정과 별도의 upload key가 모두 있어야 합니다.
 
@@ -296,7 +305,7 @@ flutter build appbundle --release --dart-define=TAGO_KEY=YOUR_TAGO_KEY --dart-de
 
 `key.properties`, `*.jks`, `*.keystore`, Firebase 설정 파일은 Git에서 제외됩니다. release 설정이 없거나 예시 값이 남아 있으면 Gradle이 누락 항목을 표시하고 빌드를 중단합니다.
 
-### 5. GitHub Actions release 설정
+### 6. GitHub Actions release 설정
 
 `.github/workflows/android-release.yml`은 `main` 브랜치에서 수동으로만 실행됩니다. 다음 값을 **Settings → Secrets and variables → Actions → Repository secrets**에 등록합니다.
 
