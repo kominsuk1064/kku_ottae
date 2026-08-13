@@ -48,8 +48,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Check repository hygiene
+        run: dart run tool/check_repository_hygiene.dart
+
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=none --set-exit-if-changed lib test tool
 
       - name: Analyze
         run: flutter analyze
