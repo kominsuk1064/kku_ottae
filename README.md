@@ -14,7 +14,7 @@
 | 개발 인원 | 1명, 개인 프로젝트 |
 | 담당 역할 | 기획, Flutter 구현, 아키텍처 리팩터링, 테스트, CI·release 파이프라인, 운영 관측 구성 |
 | 주요 연동 | Firebase Authentication·Firestore, TAGO 버스 API, SharedPreferences, WebView |
-| 현재 상태 | 구조·자동 검증·배포 및 관측 구조 구축 완료, 실제 서명 release와 Firebase Console 수신 검증 예정 |
+| 현재 상태 | 구조·자동 검증·서명 AAB 배포 검증과 Firebase Console의 Crashlytics·Performance 수신 검증 완료 |
 
 ## 핵심 성과
 
@@ -22,7 +22,7 @@
 | --- | --- |
 | 구조 | 버스·즐겨찾기를 시작으로 인증·프로필·피드백·지도까지 Riverpod 기반 단방향 상태와 Repository 경계 적용 |
 | 안정성 | TAGO 응답 변형, 네트워크 실패, 상태 전환, 생명주기와 반응형 UI를 포함한 `flutter test` 169개 통과 |
-| 자동화·관측 | PR마다 포맷·분석·테스트·debug APK를 검증하고, 수동 서명 AAB 및 release 전용 Crashlytics·Performance 구조 구성 |
+| 자동화·관측 | PR마다 포맷·분석·테스트·debug APK를 검증하고, 서명 AAB·checksum과 release 전용 Crashlytics·Performance 실제 수신 검증 |
 
 ## 주요 화면
 
@@ -277,7 +277,7 @@ Android 앱은 application ID `com.kominsuk1064.kkuottae`, iOS 앱은 Bundle ID 
 
 두 파일은 `.gitignore`에 포함되어 있으므로 저장소에 커밋하지 않습니다. Android debug APK는 CI의 컴파일 검증을 위해 설정 파일 없이도 빌드되지만, 이 상태에서는 Firebase 기능을 실행할 수 없습니다. non-debug Android 빌드에는 `google-services.json`이 필요합니다.
 
-Crashlytics와 Performance 원격 수집은 release 빌드에서만 활성화됩니다. Android release는 프로세스 시작 시점부터 수집하고, iOS release는 Flutter 초기화에서 활성화합니다. Android와 iOS의 debug·profile은 네이티브 설정과 Flutter 초기화에서 수집을 비활성화합니다. 실제 Firebase Console 수신 여부는 운영 Firebase 설정과 서명을 주입한 release 빌드에서 확인해야 합니다. 앱에는 검증 목적의 강제 crash 버튼을 추가하지 않았습니다.
+Crashlytics와 Performance 원격 수집은 release 빌드에서만 활성화됩니다. Android release는 프로세스 시작 시점부터 수집하고, iOS release는 Flutter 초기화에서 활성화합니다. Android와 iOS의 debug·profile은 네이티브 설정과 Flutter 초기화에서 수집을 비활성화합니다. 운영 Firebase 설정과 서명을 주입한 Android release를 Pixel 8 에뮬레이터에서 실행해 Crashlytics 테스트 오류와 Performance custom trace가 Firebase Console에 수신되는 것을 확인했습니다. 검증용 crash 코드는 제품 코드에 포함하지 않았습니다.
 
 ### 3. TAGO API
 
@@ -420,7 +420,7 @@ flutter build apk --debug
 - 편의시설 화면은 반응형 레이아웃을 적용했지만 장소 데이터의 최신성 검증과 별도 데이터 계층은 아직 없습니다.
 - WebView 지도는 오류·타임아웃·재시도 상태를 제공하지만 콘텐츠 가용성은 외부 학교 웹페이지와 네트워크 상태에 영향을 받습니다.
 - PR CI는 Android debug APK까지만 검증하며 iOS build는 포함하지 않습니다.
-- Android 수동 release workflow는 구성했지만 Repository Secrets를 사용한 실제 서명 AAB 실행은 운영 자격 증명 등록 후 확인해야 하며, Play Store 배포 자동화는 아직 없습니다.
-- Crashlytics와 Performance 수신은 운영 설정을 주입한 release 빌드에서 확인해야 하며 iOS dSYM 업로드 자동화는 아직 없습니다.
+- Android 수동 release workflow로 서명 AAB와 SHA-256 checksum 생성을 검증했지만, Play Store 배포 자동화는 아직 없습니다.
+- Android에서는 Crashlytics와 Performance의 Firebase Console 수신을 검증했지만, iOS dSYM 업로드 자동화는 아직 없습니다.
 
 이 항목들은 완료된 기능처럼 포장하지 않고 후속 이슈에서 작은 단위로 개선합니다.
