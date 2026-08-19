@@ -82,7 +82,6 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-          cache-read-only: true
           cache-dependency-path: |
             android/**/*.gradle*
             android/gradle/wrapper/gradle-wrapper.properties
@@ -191,7 +190,7 @@ jobs:
           )
 
       - name: Upload signed AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: kku-ottae-android-${{ inputs.version_name }}-${{ inputs.build_number }}
           path: build/release-artifacts/*
