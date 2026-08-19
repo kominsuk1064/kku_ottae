@@ -32,7 +32,6 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
             android/**/*.gradle*
             android/gradle/wrapper/gradle-wrapper.properties
