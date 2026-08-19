@@ -2,9 +2,35 @@
 
 [![Flutter CI](https://github.com/kominsuk1064/kku_ottae/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/kominsuk1064/kku_ottae/actions/workflows/flutter-ci.yml)
 
-건국대학교 글로컬캠퍼스 학생이 버스 도착 정보, 주변 편의시설, 교내 지도를 한 앱에서 확인할 수 있도록 만든 Flutter 앱입니다.
+건국대학교 글로컬캠퍼스 학생이 **실시간 버스 도착 정보, 주변 편의시설, 교내 지도**를 한 앱에서 확인할 수 있도록 만든 Flutter 앱입니다.
 
-이 저장소의 고도화 목표는 기능 수를 늘리는 것이 아니라, 기존 사용자 흐름을 유지하면서 **구조, 테스트 가능성, 장애 대응 상태, 배포 검증 경험**을 코드로 보여주는 것입니다. 버스 정보와 즐겨찾기를 첫 번째 vertical slice로 리팩터링했고, 로그인·회원가입·계정 세션·프로필 조회·피드백 제출·캠퍼스 지도 흐름에도 같은 경계를 확장했습니다.
+기존 기능을 유지하면서 화면에 결합되어 있던 상태와 외부 의존성을 분리하고, 테스트·CI·운영 관측·배포 준비를 단계적으로 보강했습니다. 기능 수보다 **구조, 테스트 가능성, 장애 대응과 배포 경험**을 증명하는 데 초점을 둔 프로젝트입니다.
+
+## 프로젝트 한눈에 보기
+
+| 구분 | 내용 |
+| --- | --- |
+| 개발 기간 | 2025.08–2026.08 (Git 저장소 이력 기준) |
+| 개발 인원 | 1명, 개인 프로젝트 |
+| 담당 역할 | 기획, Flutter 구현, 아키텍처 리팩터링, 테스트, CI·release 파이프라인, 운영 관측 구성 |
+| 주요 연동 | Firebase Authentication·Firestore, TAGO 버스 API, SharedPreferences, WebView |
+| 현재 상태 | 구조·자동 검증·배포 및 관측 구조 구축 완료, 실제 서명 release와 Firebase Console 수신 검증 예정 |
+
+## 핵심 성과
+
+| 영역 | 결과 |
+| --- | --- |
+| 구조 | 버스·즐겨찾기를 시작으로 인증·프로필·피드백·지도까지 Riverpod 기반 단방향 상태와 Repository 경계 적용 |
+| 안정성 | TAGO 응답 변형, 네트워크 실패, 상태 전환, 생명주기와 반응형 UI를 포함한 `flutter test` 169개 통과 |
+| 자동화·관측 | PR마다 포맷·분석·테스트·debug APK를 검증하고, 수동 서명 AAB 및 release 전용 Crashlytics·Performance 구조 구성 |
+
+## 주요 화면
+
+| 홈 | 실시간 버스 도착 | 편의시설 |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/home.png" width="240" alt="건대어때 홈 화면"> | <img src="docs/screenshots/bus-arrivals.png" width="240" alt="실시간 버스 도착 정보 화면"> | <img src="docs/screenshots/facilities.png" width="240" alt="편의시설 카테고리 화면"> |
+
+화면 이미지는 저장소의 실제 위젯을 390×844 뷰포트에서 렌더링했습니다. 버스 화면의 값은 API 키나 외부 호출 없이 같은 Repository 경계에 주입한 고정 fixture이며, 운영 API 응답을 재현한 것으로 표시하지 않습니다.
 
 ## 해결하려는 문제
 
